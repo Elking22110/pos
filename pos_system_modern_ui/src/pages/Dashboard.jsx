@@ -1,0 +1,333 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  TrendingUp, 
+  Users, 
+  Package, 
+  DollarSign, 
+  ShoppingCart,
+  AlertTriangle,
+  BarChart3,
+  PieChart,
+  Activity
+} from 'lucide-react';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// مكون Tooltip مخصص لتوزيع المبيعات
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
+        <p className="text-white font-semibold text-sm mb-1">{data.name}</p>
+        <p className="text-blue-300 text-sm">{data.value}%</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalSales: 1234567,
+    totalOrders: 1248,
+    totalCustomers: 342,
+    totalProducts: 156
+  });
+
+  const [recentOrders, setRecentOrders] = useState([
+    { id: 1, customer: 'أحمد محمد', amount: 250, time: '10:30 ص' },
+    { id: 2, customer: 'فاطمة علي', amount: 180, time: '10:15 ص' },
+    { id: 3, customer: 'محمد حسن', amount: 320, time: '10:00 ص' },
+    { id: 4, customer: 'سارة أحمد', amount: 95, time: '09:45 ص' },
+    { id: 5, customer: 'علي محمود', amount: 450, time: '09:30 ص' }
+  ]);
+
+  const [lowStockProducts, setLowStockProducts] = useState([
+    { name: 'جاكيت أسود رسمي', stock: 2, minStock: 5 },
+    { name: 'جاكيت بني صوف', stock: 1, minStock: 3 },
+    { name: 'حذاء رسمي أسود', stock: 3, minStock: 5 }
+  ]);
+
+  // بيانات المبيعات اليومية
+  const dailySalesData = [
+    { day: 'السبت', sales: 1200 },
+    { day: 'الأحد', sales: 1900 },
+    { day: 'الاثنين', sales: 3000 },
+    { day: 'الثلاثاء', sales: 2800 },
+    { day: 'الأربعاء', sales: 1890 },
+    { day: 'الخميس', sales: 2390 },
+    { day: 'الجمعة', sales: 3490 }
+  ];
+
+  // بيانات توزيع المبيعات
+  const salesDistributionData = [
+    { name: 'أحذية', value: 35, color: '#9333ea' },
+    { name: 'قمصان', value: 25, color: '#6366f1' },
+    { name: 'بناطيل', value: 20, color: '#22c55e' },
+    { name: 'جواكت', value: 20, color: '#f59e0b' }
+  ];
+
+  // بيانات الإيرادات
+  const revenueData = [
+    { month: 'يناير', revenue: 4000, profit: 2400 },
+    { month: 'فبراير', revenue: 3000, profit: 1398 },
+    { month: 'مارس', revenue: 2000, profit: 9800 },
+    { month: 'أبريل', revenue: 2780, profit: 3908 },
+    { month: 'مايو', revenue: 1890, profit: 4800 },
+    { month: 'يونيو', revenue: 2390, profit: 3800 }
+  ];
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+          {/* Background Animation */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-3 animate-float"></div>
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-3 animate-float" style={{animationDelay: '2s'}}></div>
+            <div className="absolute top-40 left-40 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl opacity-3 animate-float" style={{animationDelay: '4s'}}></div>
+          </div>
+      
+      <div className="relative z-10 p-2 md:p-4 lg:p-6 xl:p-8 space-y-2 md:space-y-4 lg:space-y-6 xl:space-y-8 max-w-full overflow-x-hidden">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center animate-fadeInDown space-y-4 md:space-y-0">
+          <div className="flex-1">
+            <h1 className="text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-2 md:mb-3 bg-gradient-to-r from-white via-purple-200 to-purple-300 bg-clip-text text-transparent">
+              لوحة تحكم متجر الأزياء الرجالية
+            </h1>
+            <p className="text-purple-200 text-xs md:text-sm lg:text-base xl:text-lg font-medium">مرحباً بك في نظام إدارة المتجر المتطور</p>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-purple-300 mb-1 font-medium">آخر تحديث</div>
+            <div className="text-white font-semibold text-xs md:text-sm">{new Date().toLocaleString('ar-SA')}</div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
+          <div className="glass-card hover-lift animate-fadeInUp group cursor-pointer p-4 md:p-6 lg:p-8" style={{animationDelay: '0.1s'}}>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي المبيعات</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">${stats.totalSales.toLocaleString()}</p>
+                <div className="flex items-center text-xs">
+                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
+                  <span className="text-green-400 font-semibold">+12.5%</span>
+                  <span className="text-purple-300 mr-1 md:mr-2 font-medium">من الشهر الماضي</span>
+                </div>
+              </div>
+                  <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <DollarSign className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
+                  </div>
+            </div>
+          </div>
+
+          <div className="glass-card hover-lift animate-fadeInUp group cursor-pointer p-4 md:p-6 lg:p-8" style={{animationDelay: '0.2s'}}>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي الطلبات</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalOrders.toLocaleString()}</p>
+                <div className="flex items-center text-xs">
+                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
+                  <span className="text-green-400 font-semibold">+8.2%</span>
+                  <span className="text-purple-300 mr-1 md:mr-2 font-medium">من الشهر الماضي</span>
+                </div>
+              </div>
+              <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-green-500 to-green-600 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <ShoppingCart className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card hover-lift animate-fadeInUp group cursor-pointer p-4 md:p-6 lg:p-8" style={{animationDelay: '0.3s'}}>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي العملاء</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalCustomers}</p>
+                <div className="flex items-center text-xs">
+                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
+                  <span className="text-green-400 font-semibold">+15.3%</span>
+                  <span className="text-purple-300 mr-1 md:mr-2 font-medium">من الشهر الماضي</span>
+                </div>
+              </div>
+              <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <Users className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card hover-lift animate-fadeInUp group cursor-pointer p-4 md:p-6 lg:p-8" style={{animationDelay: '0.4s'}}>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي المنتجات</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalProducts}</p>
+                <div className="flex items-center text-xs">
+                  <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
+                  <span className="text-green-400 font-semibold">+5.7%</span>
+                  <span className="text-purple-300 mr-1 md:mr-2 font-medium">من الشهر الماضي</span>
+                </div>
+              </div>
+              <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <Package className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
+              </div>
+            </div>
+          </div>
+      </div>
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+          {/* Daily Sales Chart */}
+          <div className="glass-card hover-lift animate-fadeInLeft" style={{animationDelay: '0.5s'}}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white">المبيعات اليومية</h3>
+                  <div className="p-2 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg">
+                    <BarChart3 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={dailySalesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="day" stroke="rgba(255,255,255,0.7)" />
+                <YAxis stroke="rgba(255,255,255,0.7)" />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '12px',
+                    color: 'white'
+                  }}
+                />
+                <Bar dataKey="sales" fill="url(#gradient)" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9333ea" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.8}/>
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Sales Distribution */}
+          <div className="glass-card hover-lift animate-fadeInRight" style={{animationDelay: '0.6s'}}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white">توزيع المبيعات</h3>
+                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                    <PieChart className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <RechartsPieChart>
+                <Pie
+                  data={salesDistributionData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {salesDistributionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          <div className="mt-4 space-y-2">
+            {salesDistributionData.map((item, index) => (
+              <div key={index} className="flex items-center justify-between text-sm">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color }}></div>
+                  <span className="text-white font-medium">{item.name}</span>
+                </div>
+                <span className="font-semibold text-white">{item.value}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Chart */}
+      <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.9s'}}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-white">الإيرادات والأرباح</h3>
+          <div className="p-2 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg">
+            <Activity className="h-6 w-6 text-white" />
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={revenueData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
+            <YAxis stroke="rgba(255,255,255,0.7)" />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '12px',
+                color: 'white'
+              }}
+            />
+            <Area type="monotone" dataKey="revenue" stackId="1" stroke="#6366f1" fill="#6366f1" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="profit" stackId="1" stroke="#9333ea" fill="#9333ea" fillOpacity={0.6} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+        {/* Bottom Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Orders */}
+          <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.7s'}}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">آخر الطلبات</h3>
+              <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                <Activity className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              {recentOrders.map((order, index) => (
+                <div key={order.id} className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-xl hover:bg-opacity-20 transition-all duration-300 group">
+                  <div>
+                    <p className="font-semibold text-white group-hover:text-purple-200 transition-colors">{order.customer}</p>
+                    <p className="text-sm text-purple-200">{order.time}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-white text-lg">${order.amount}</p>
+                    <p className="text-xs text-green-400 bg-green-500 bg-opacity-20 px-2 py-1 rounded-full">مكتمل</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Low Stock Alert */}
+          <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.8s'}}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">تنبيهات المخزون</h3>
+              <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg animate-pulse-custom">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              {lowStockProducts.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-orange-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 group border border-orange-500 border-opacity-30">
+                  <div>
+                    <p className="font-semibold text-white group-hover:text-orange-200 transition-colors">{product.name}</p>
+                    <p className="text-sm text-orange-200">الحد الأدنى: {product.minStock}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-lg ${product.stock === 0 ? 'text-red-400' : 'text-orange-300'}`}>
+                      {product.stock} متبقي
+                    </p>
+                    <p className="text-xs text-orange-400 bg-orange-500 bg-opacity-30 px-2 py-1 rounded-full">مخزون منخفض</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
