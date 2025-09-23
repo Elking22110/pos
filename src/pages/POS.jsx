@@ -66,6 +66,71 @@ const POS = () => {
 
 
   // إضافة منتج للسلة
+  // حذف فئة
+  const deleteCategory = async (categoryName) => {
+    try {
+      if (categoryName === 'الكل') return;
+      if (!window.confirm(`هل تريد حذف فئة "${categoryName}"؟`)) return;
+      const categoryToDelete = categories.find(c => c.name === categoryName);
+
+      // نقل منتجات هذه الفئة إلى "غير مصنف"
+      const fallbackName = 'غير مصنف';
+      let ensuredCategories = categories;
+      if (!categories.some(c => c.name === fallbackName)) {
+        ensuredCategories = [...categories, { id: Date.now(), name: fallbackName }];
+      }
+
+      const updatedProducts = products.map(p => p.category === categoryName ? { ...p, category: fallbackName } : p);
+      setProducts(updatedProducts);
+      localStorage.setItem('products', JSON.stringify(updatedProducts));
+      try { for (const p of updatedProducts.filter(p=>p.category===fallbackName)) { await databaseManager.update('products', p); } } catch (e) {}
+
+      const updated = ensuredCategories.filter(c => c.name !== categoryName);
+      setCategories(updated);
+      // تحديث التخزين المحلي للمزامنة مع تبويبات أخرى
+      localStorage.setItem('productCategories', JSON.stringify(updated));
+      // حذف من قاعدة البيانات إن وُجد معرف
+      if (categoryToDelete && categoryToDelete.id !== undefined) {
+        try { await databaseManager.delete('categories', categoryToDelete.id); } catch (e) {}
+      }
+      if (selectedCategory === categoryName) setSelectedCategory('الكل');
+      notifySuccess('تم حذف الفئة', `تم حذف فئة ${categoryName} ونقل منتجاتها إلى ${fallbackName}`);
+    } catch (err) {
+      notifyError('فشل حذف الفئة', 'حدث خطأ أثناء حذف الفئة');
+    }
+  };
+
+  const editCategory = async (oldName) => {
+    try {
+      if (oldName === 'الكل') return;
+      const newName = window.prompt('أدخل اسم الفئة الجديد', oldName);
+      if (!newName || newName.trim() === '' || newName === oldName) return;
+      if (categories.some(c => c.name === newName)) {
+        notifyError('اسم الفئة موجود', 'اختر اسمًا مختلفًا');
+        return;
+      }
+
+      const updatedCategories = categories.map(c => c.name === oldName ? { ...c, name: newName } : c);
+      setCategories(updatedCategories);
+      localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
+      try {
+        const cat = categories.find(c => c.name === oldName);
+        if (cat && cat.id !== undefined) await databaseManager.update('categories', { ...cat, name: newName });
+      } catch (e) {}
+
+      // تحديث المنتجات التابعة لهذه الفئة
+      const updatedProducts = products.map(p => p.category === oldName ? { ...p, category: newName } : p);
+      setProducts(updatedProducts);
+      localStorage.setItem('products', JSON.stringify(updatedProducts));
+      try { for (const p of updatedProducts.filter(p=>p.category===newName)) { await databaseManager.update('products', p); } } catch (e) {}
+
+      if (selectedCategory === oldName) setSelectedCategory(newName);
+      notifySuccess('تم تعديل الفئة', `تم تغيير اسم الفئة إلى ${newName}`);
+    } catch (err) {
+      notifyError('فشل تعديل الفئة', 'حدث خطأ أثناء تعديل الفئة');
+    }
+  };
+
   const addToCart = (product) => {
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
@@ -733,7 +798,7 @@ Elking Store
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
-      <div className="relative z-10 p-2 md:p-4 lg:p-6 xl:p-8 space-y-2 md:space-y-4 lg:space-y-6 xl:space-y-8 max-w-full overflow-x-hidden">
+      <div className="relative z-10 p-2 md:p-4 lg:p-6 xl:p-8 space-y-2 md:space-y-4 lg:space-y-6 xl:space-y-8 max-w-full overflow-x-hidden overflow-y-visible">
         {/* Header */}
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -819,267 +884,135 @@ Elking Store
             )}
           </button>
         </div>
-      </div>
-        
+          </div>
+      
         {/* Main Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
-          {/* الجانب الأيسر - المنتجات */}
-          <div className="md:col-span-2 relative z-10 min-w-0 flex flex-col">
-            
-            {/* تنبيه عدم وجود وردية نشطة */}
+        <div className="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          {/* المنتجات - يسار */}
+          <div className="lg:col-span-8 flex flex-col min-w-0">
+            {/* تنبيه عدم وجود وردية */}
             {!activeShift && (
-              <div className="mb-4 bg-red-500 bg-opacity-20 border-2 border-red-500 border-opacity-50 rounded-xl p-4 md:p-6">
-                <div className="flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Square className="h-8 w-8 text-red-400" />
-        </div>
-                    <h3 className="text-lg md:text-xl font-bold text-red-300 mb-2">
-                      ⚠️ لا توجد وردية نشطة
-                    </h3>
-                    <p className="text-red-200 text-sm md:text-base mb-3">
-                      يجب بدء وردية جديدة قبل إتمام أي عملية بيع
-                    </p>
-                    <p className="text-red-300 text-xs md:text-sm">
-                      اذهب إلى الإعدادات → إدارة الورديات → بدء وردية جديدة
-                    </p>
-                  </div>
+              <div className="mb-3 bg-red-500 bg-opacity-20 border-2 border-red-500 border-opacity-50 rounded-xl p-4">
+                <div className="text-center">
+                  <h3 className="text-red-300 font-bold mb-1">⚠️ لا توجد وردية نشطة</h3>
+                  <p className="text-red-200 text-sm">ابدأ وردية جديدة من الإعدادات قبل البيع</p>
                 </div>
-              </div>
+        </div>
             )}
 
-            {/* شريط البحث وتصنيف الفئات */}
-        <div className="space-y-2 md:space-y-3 mb-2 md:mb-4">
-        {/* شريط البحث */}
-          <div className="relative bg-gray-800 bg-opacity-50 rounded-lg p-2">
-            <Search className="absolute right-3 md:right-4 top-1/2 transform -translate-y-1/2 text-blue-300 h-4 w-4 md:h-5 md:w-5 z-20" />
+            {/* أدوات البحث والفلاتر */}
+            <div className="space-y-2 mb-3">
+              <div className="relative bg-gray-800 bg-opacity-50 rounded-lg p-2">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 h-4 w-4" />
           <input
             type="text"
-              placeholder="البحث بالاسم أو التصنيف..."
+                  placeholder="البحث بالاسم أو الفئة..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-modern w-full pr-10 md:pr-12 pl-2 md:pl-3 py-2 md:py-3 text-xs md:text-sm text-right font-medium bg-gray-700 bg-opacity-80 border border-gray-600 rounded-lg"
+                  className="input-modern w-full pr-9 pl-2 py-2 text-xs md:text-sm text-right bg-gray-700 bg-opacity-80 border border-gray-600 rounded-lg"
           />
         </div>
-
-          {/* تصنيف الفئات */}
-          <div className="bg-gray-800 bg-opacity-50 rounded-lg p-2">
-            <div className="flex items-center space-x-2 mb-2">
-              <Filter className="h-4 w-4 text-blue-300" />
-              <span className="text-xs text-blue-200 font-medium">تصنيف الفئات:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedCategory('الكل')}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                  selectedCategory === 'الكل'
-                    ? 'bg-blue-500 text-white shadow-lg'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                الكل
-              </button>
-              {categories.map(category => (
-                <button
-                  key={category.name}
-                  onClick={() => setSelectedCategory(category.name)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                    selectedCategory === category.name
-                      ? 'bg-purple-500 text-white shadow-lg'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div className="bg-gray-800 bg-opacity-50 rounded-lg p-2">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Filter className="h-4 w-4 text-blue-300" />
+                  <span className="text-xs text-blue-200">تصنيف الفئات:</span>
+        </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setSelectedCategory('الكل')} className={`px-3 py-1 rounded-full text-xs ${selectedCategory==='الكل'?'bg-blue-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>الكل</button>
+                  {categories.map(cat => (
+                    <button key={cat.name} onClick={() => setSelectedCategory(cat.name)} className={`px-3 py-1 rounded-full text-xs ${selectedCategory===cat.name?'bg-purple-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{cat.name}</button>
+          ))}
+        </div>
+      </div>
         </div>
 
-
-        {/* قائمة المنتجات داخل كارد واحد */}
-        <div className="glass-card hover-lift animate-fadeInUp chart-enhanced flex flex-col min-h-[65vh]" style={{animationDelay: '0.6s'}}>
-          <div className="p-4 md:p-6 border-b border-white border-opacity-20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
+            {/* كارد المنتجات */}
+            <div className="glass-card chart-enhanced flex flex-col overflow-visible">
+              <div className="p-4 border-b border-white border-opacity-20 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg"><Package className="h-5 w-5 text-white" /></div>
+                  <h3 className="text-white font-bold">المنتجات المتاحة</h3>
                 </div>
-                <h3 className="text-lg font-bold text-white">المنتجات المتاحة</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30">
-                  <span className="text-blue-300 text-sm font-medium">
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-300 text-sm bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30">
                     {(() => {
-                      const filteredProducts = products.filter(product => {
-                        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             product.category.toLowerCase().includes(searchTerm.toLowerCase());
-                        const matchesCategory = selectedCategory === 'الكل' || product.category === selectedCategory;
-                        return matchesSearch && matchesCategory;
-                      });
-                      return filteredProducts.length;
-                    })()} منتج
+                      const filtered = products.filter(p => (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase())) && (selectedCategory==='الكل' || p.category===selectedCategory));
+                      return `${filtered.length} منتج`;
+                    })()}
                   </span>
-                </div>
               </div>
             </div>
-        </div>
-
-          <div className="p-4 md:p-6 flex-1 overflow-y-auto custom-scrollbar">
-            {!activeShift && (
-              <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-                <div className="p-4 bg-red-500 bg-opacity-20 rounded-full mb-4">
-                  <Square className="h-16 w-16 text-red-400" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-red-300">لا يمكن عرض المنتجات</h3>
-                <p className="text-sm text-red-200">
-                  يجب بدء وردية جديدة من الإعدادات أولاً
-                </p>
-              </div>
-            )}
-            {activeShift && (
-<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
-          {(() => {
-            // فلترة المنتجات حسب البحث والفئة
-            const filteredProducts = products.filter(product => {
-              const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   product.category.toLowerCase().includes(searchTerm.toLowerCase());
-              const matchesCategory = selectedCategory === 'الكل' || product.category === selectedCategory;
-              return matchesSearch && matchesCategory;
-            });
-
-            return filteredProducts.map((product, index) => (
-            <div
-              key={product.id}
-                  className="glass-card hover-lift cursor-pointer pos-product-card group loading-enhanced h-32 xl:h-36"
-              onClick={() => addToCart(product)}
-                  style={{animationDelay: `${index * 0.1}s`}}
-                >
-              <div className="text-center flex flex-col h-full p-2">
-                {/* صورة المنتج - حجم مصغر */}
-                <div className="w-12 h-12 mx-auto mb-2 rounded-lg overflow-hidden group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  {productImages[product.id] ? (
-                    <img 
-                      src={productImages[product.id]} 
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img 
-                      src={ImageManager.getDefaultImage(product.category)} 
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                
-                {/* محتوى المنتج */}
-                <div className="flex-1 flex flex-col justify-between">
-                  <h3 className="font-bold text-white text-xs leading-tight mb-1 line-clamp-2 group-hover:text-blue-200 transition-colors duration-300">{product.name}</h3>
-                  
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-white">{product.price} جنيه</p>
-                    <p className="text-xs text-blue-300">مخزون: {product.stock}</p>
-              </div>
-            </div>
+              <div className="p-4 overflow-visible">
+                {activeShift ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
+                    {(() => {
+                      const filtered = products.filter(p => (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase())) && (selectedCategory==='الكل' || p.category===selectedCategory));
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="col-span-full flex flex-col items-center justify-center h-40 text-gray-400">
+                            <Package className="h-10 w-10 opacity-50" />
+                            <p className="mt-2 text-sm">لا توجد منتجات مطابقة</p>
+                          </div>
+                        );
+                      }
+                      return filtered.map((product, index) => (
+                        <div key={product.id} className="glass-card cursor-pointer h-32 xl:h-36" onClick={() => addToCart(product)} style={{animationDelay: `${index*0.05}s`}}>
+                          <div className="h-full p-2 flex flex-col">
+                            <div className="w-12 h-12 mx-auto mb-2 rounded-lg overflow-hidden shadow-lg">
+                              <img src={productImages[product.id] || ImageManager.getDefaultImage(product.category)} alt={product.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 flex flex-col justify-between text-right">
+                              <h4 className="text-white text-[13px] font-semibold leading-snug line-clamp-2">
+                                {product.name}
+                              </h4>
+                              <div className="mt-2 flex items-center justify-between">
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-500 bg-opacity-15 text-emerald-300 font-bold text-xs">
+                                  {product.price} جنيه
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md bg-blue-500 bg-opacity-15 text-blue-300 text-[11px]">
+                                  مخزون: {product.stock}
+                                </span>
         </div>
       </div>
-            ));
-          })()}
-          
-          {/* رسالة عدم وجود منتجات */}
-          {(() => {
-            const filteredProducts = products.filter(product => {
-              const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   product.category.toLowerCase().includes(searchTerm.toLowerCase());
-              const matchesCategory = selectedCategory === 'الكل' || product.category === selectedCategory;
-              return matchesSearch && matchesCategory;
-            });
-
-            if (filteredProducts.length === 0) {
-              return (
-                <div className="col-span-full flex flex-col items-center justify-center h-64 text-center text-gray-400 animate-fadeInUp">
-                  <div className="p-4 bg-gray-500 bg-opacity-20 rounded-full mb-4">
-                    <Package className="h-16 w-16 opacity-50" />
-            </div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">لا توجد منتجات</h3>
-                  <p className="text-sm text-gray-300">
-                    {selectedCategory !== 'الكل' 
-                      ? `لا توجد منتجات في فئة "${selectedCategory}"`
-                      : 'لا توجد منتجات تطابق البحث'
-                    }
-                  </p>
-            </div>
-              );
-            }
-            return null;
-          })()}
-            </div>
-            )}
           </div>
-
-          {/* الجانب الأيمن - السلة والدفع */}
-          {activeShift && (
-            <div className="md:col-span-1 w-full flex flex-col relative z-10">
-            <div className="glass-card hover-lift animate-fadeInRight p-4 md:p-6 flex flex-col min-h-[65vh]">
-              <div className="flex items-center mb-4 md:mb-6" style={{animationDelay: '0.1s'}}>
-                <div className="p-3 md:p-4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl md:rounded-2xl mr-3 md:mr-4">
-                  <ShoppingCart className="h-6 w-6 md:h-7 md:w-7 text-white" />
+        </div>
+                      ));
+                    })()}
+            </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-red-300 text-sm">ابدأ وردية لعرض المنتجات</div>
+                )}
+            </div>
           </div>
-                <h2 className="text-sm md:text-base font-bold text-white">سلة المشتريات</h2>
         </div>
 
-
-        {/* عناصر السلة */}
-            <div className="flex-1 overflow-y-auto mb-4 md:mb-6 custom-scrollbar">
-          {!activeShift && (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-              <div className="p-4 bg-red-500 bg-opacity-20 rounded-full mb-4">
-                <Square className="h-16 w-16 text-red-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-red-300">لا يمكن استخدام السلة</h3>
-              <p className="text-sm text-red-200">
-                يجب بدء وردية جديدة من الإعدادات أولاً
-              </p>
+          {/* السلة - يمين */}
+          {activeShift && (
+            <div className="lg:col-span-4 flex flex-col min-w-0">
+              <div className="glass-card p-3 md:p-4 flex flex-col">
+                <div className="flex items-center mb-3">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg mr-2"><ShoppingCart className="h-4 w-4 text-white" /></div>
+                  <h2 className="text-xs md:text-sm font-bold text-white">سلة المشتريات</h2>
+                </div>
+                <div>
+          {cart.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-blue-300">
+                      <div className="w-16 h-16 bg-blue-500 bg-opacity-20 rounded-2xl mb-4 flex items-center justify-center"><ShoppingCart className="h-8 w-8" /></div>
+                      <p className="text-sm">السلة فارغة</p>
             </div>
-          )}
-          {activeShift && cart.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center text-blue-300 animate-fadeInUp" style={{animationDelay: '0.3s'}}>
-                  <div className="w-20 h-20 md:w-24 md:h-24 bg-blue-500 bg-opacity-20 rounded-3xl mx-auto mb-6 md:mb-8 flex items-center justify-center">
-                    <ShoppingCart className="h-10 w-10 md:h-12 md:w-12 text-blue-300" />
-              </div>
-                  <p className="text-sm md:text-base font-semibold mb-2">السلة فارغة</p>
-                  <p className="text-xs md:text-sm text-blue-400">أضف منتجات للبدء</p>
-            </div>
-          )}
-          {activeShift && cart.length > 0 && (
-                <div className="space-y-1 md:space-y-2">
+          ) : (
+                    <div className="space-y-2">
               {cart.map((item, index) => (
-                    <div key={item.id} className="flex items-center justify-between p-1.5 md:p-2 bg-white bg-opacity-10 rounded-lg hover:bg-opacity-20 transition-all duration-300 group animate-fadeInUp" style={{animationDelay: `${0.3 + index * 0.1}s`}}>
+                        <div key={item.id} className="flex items-center justify-between p-2 bg-white bg-opacity-10 rounded-lg">
                   <div className="flex-1">
-                        <h4 className="font-bold text-white text-xs group-hover:text-blue-200 transition-colors line-clamp-1">{item.name}</h4>
-                        <p className="text-xs text-blue-300 font-medium">${item.price}</p>
+                            <h4 className="text-white text-xs font-bold line-clamp-1">{item.name}</h4>
+                            <p className="text-xs text-blue-300">${item.price}</p>
                   </div>
-                      <div className="flex items-center space-x-1 md:space-x-2">
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="p-1.5 md:p-2 bg-red-500 bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all duration-300 touch-button"
-                    >
-                          <Minus className="h-3 w-3 md:h-4 md:w-4 text-red-300" />
-                    </button>
-                        <span className="w-6 md:w-8 text-center text-xs font-bold text-white bg-white bg-opacity-20 px-1.5 md:px-2 py-1 md:py-1.5 rounded-lg">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="p-1.5 md:p-2 bg-green-500 bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all duration-300 touch-button"
-                    >
-                          <Plus className="h-3 w-3 md:h-4 md:w-4 text-green-300" />
-                    </button>
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                          className="p-1.5 md:p-2 bg-red-500 bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all duration-300 touch-button"
-                    >
-                          <Trash2 className="h-3 w-3 md:h-4 md:w-4 text-red-300" />
-                    </button>
+                          <div className="flex items-center space-x-2">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 bg-red-500 bg-opacity-20 rounded-lg"><Minus className="h-3 w-3 text-red-300" /></button>
+                            <span className="w-8 text-center text-xs font-bold text-white bg-white bg-opacity-20 px-2 py-1 rounded-lg">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 bg-green-500 bg-opacity-20 rounded-lg"><Plus className="h-3 w-3 text-green-300" /></button>
+                            <button onClick={() => removeFromCart(item.id)} className="p-2 bg-red-500 bg-opacity-20 rounded-lg"><Trash2 className="h-3 w-3 text-red-300" /></button>
                   </div>
                 </div>
               ))}
@@ -1087,250 +1020,130 @@ Elking Store
           )}
         </div>
 
-        {/* الإجمالي */}
-            <div className="mb-4 md:mb-6">
-              <div className="space-y-2 mb-3 md:mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs md:text-sm text-blue-200">المجموع الفرعي:</span>
-                  <span className="text-sm md:text-base text-white">{getSubtotal().toFixed(2)} جنيه</span>
-          </div>
-                
-                {getDiscountAmount() > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-green-200">الخصم:</span>
-                    <span className="text-sm md:text-base text-green-300">-{getDiscountAmount().toFixed(2)} جنيه</span>
-                  </div>
-                )}
-                
-                {taxes.enabled && getTaxAmount() > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-orange-200">{taxes.name} ({taxes.vat}%):</span>
-                    <span className="text-sm md:text-base text-orange-300">{getTaxAmount().toFixed(2)} جنيه</span>
-                  </div>
-                )}
-                
-                {downPayment.enabled && getDownPaymentAmount() > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-yellow-200">العربون:</span>
-                    <span className="text-sm md:text-base text-yellow-300">{getDownPaymentAmount().toFixed(2)} جنيه</span>
-                  </div>
-                )}
-                
-                <div className="border-t border-white border-opacity-20 pt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm md:text-base font-bold text-white">
-                      {downPayment.enabled && getDownPaymentAmount() > 0 ? 'المبلغ المتبقي:' : 'الإجمالي:'}
-                    </span>
-                    <span className="text-lg md:text-xl font-bold text-white bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
-                      {downPayment.enabled && getDownPaymentAmount() > 0 ? getRemainingAmount().toFixed(2) : getTotal().toFixed(2)} جنيه
-                    </span>
-                  </div>
-                </div>
+                {/* الخصومات */}
+                <div className="mt-3">
+                  <h4 className="text-xs md:text-sm text-white font-bold mb-2">الخصومات</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-blue-200 mb-1">نوع الخصم</label>
+                      <select
+                        value={discounts.type}
+                        onChange={(e) => setDiscounts({ ...discounts, type: e.target.value })}
+                        className="input-modern w-full px-2 py-1.5 text-xs text-right bg-gray-800 border-gray-600 text-white"
+                      >
+                        <option value="percentage" className="bg-gray-800 text-white">نسبة مئوية</option>
+                        <option value="fixed" className="bg-gray-800 text-white">مبلغ ثابت</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-blue-200 mb-1">{discounts.type === 'percentage' ? 'نسبة الخصم (%)' : 'مبلغ الخصم (جنيه)'} </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={discounts.type === 'percentage' ? (discounts.percentage === '' ? '' : discounts.percentage) : (discounts.fixed === '' ? '' : discounts.fixed)}
+                        onChange={(e) => setDiscounts({
+                          ...discounts,
+                          [discounts.type === 'percentage' ? 'percentage' : 'fixed']: e.target.value === '' ? '' : parseFloat(e.target.value)
+                        })}
+                        className="input-modern w-full px-2 py-1.5 text-xs text-right"
+                      />
+                    </div>
           </div>
         </div>
 
-            {/* الخصومات */}
-            <div className="mb-4 md:mb-6">
-              <h3 className="font-bold text-white mb-4 md:mb-5 text-sm md:text-base">الخصومات</h3>
-              <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <div>
-                  <label className="block text-xs text-blue-200 mb-1">نوع الخصم</label>
-                  <select
-                    value={discounts.type}
-                    onChange={(e) => setDiscounts({...discounts, type: e.target.value})}
-                    className="input-modern w-full px-2 py-2 text-xs text-right bg-gray-800 border-gray-600 text-white"
-                  >
-                    <option value="percentage" className="bg-gray-800 text-white">نسبة مئوية</option>
-                    <option value="fixed" className="bg-gray-800 text-white">مبلغ ثابت</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-blue-200 mb-1">
-                    {discounts.type === 'percentage' ? 'نسبة الخصم (%)' : 'مبلغ الخصم (جنيه)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discounts.type === 'percentage' ? (discounts.percentage === '' ? '' : discounts.percentage) : (discounts.fixed === '' ? '' : discounts.fixed)}
-                    onChange={(e) => setDiscounts({
-                      ...discounts, 
-                      [discounts.type === 'percentage' ? 'percentage' : 'fixed']: e.target.value === '' ? '' : parseFloat(e.target.value)
-                    })}
-                    className="input-modern w-full px-2 py-2 text-xs text-right"
-                    placeholder=""
-                  />
-                </div>
-              </div>
-        </div>
-
-        {/* العربون */}
-        <div className="mb-4 md:mb-6">
-          <h3 className="font-bold text-white mb-4 md:mb-5 text-sm md:text-base">العربون</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-blue-200">تفعيل العربون</label>
-              <button
-                onClick={() => setDownPayment({...downPayment, enabled: !downPayment.enabled})}
-                className={`w-12 h-6 rounded-full transition-colors ${
-                  downPayment.enabled ? 'bg-green-500' : 'bg-gray-500'
-                }`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                  downPayment.enabled ? 'translate-x-6' : 'translate-x-1'
-                }`}></div>
-              </button>
-            </div>
-            
-            {downPayment.enabled && (
-              <>
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
-                  <div>
-                    <label className="block text-xs text-blue-200 mb-1">نوع العربون</label>
-                    <select
-                      value={downPayment.type}
-                      onChange={(e) => setDownPayment({...downPayment, type: e.target.value})}
-                      className="input-modern w-full px-2 py-2 text-xs text-right bg-gray-800 border-gray-600 text-white"
-                    >
-                      <option value="percentage" className="bg-gray-800 text-white">نسبة مئوية</option>
-                      <option value="fixed" className="bg-gray-800 text-white">مبلغ ثابت</option>
-                    </select>
+                {/* العربون */}
+                <div className="mt-3">
+                  <h4 className="text-xs md:text-sm text-white font-bold mb-2">العربون</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-blue-200">تفعيل العربون</span>
+            <button
+                        onClick={() => setDownPayment({ ...downPayment, enabled: !downPayment.enabled })}
+                        className={`w-10 h-5 rounded-full transition-colors ${downPayment.enabled ? 'bg-green-500' : 'bg-gray-500'}`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full transition-transform ${downPayment.enabled ? 'translate-x-5' : 'translate-x-1'}`}></div>
+            </button>
+                    </div>
+                    {downPayment.enabled && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] text-blue-200 mb-1">نوع العربون</label>
+                          <select
+                            value={downPayment.type}
+                            onChange={(e) => setDownPayment({ ...downPayment, type: e.target.value })}
+                            className="input-modern w-full px-2 py-1.5 text-xs text-right bg-gray-800 border-gray-600 text-white"
+                          >
+                            <option value="percentage" className="bg-gray-800 text-white">نسبة مئوية</option>
+                            <option value="fixed" className="bg-gray-800 text-white">مبلغ ثابت</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-blue-200 mb-1">{downPayment.type === 'percentage' ? 'نسبة العربون (%)' : 'مبلغ العربون (جنيه)'} </label>
+                          <input
+                            type="number"
+                            value={downPayment.type === 'percentage' ? downPayment.percentage : downPayment.amount}
+                            onChange={(e) => setDownPayment({
+                              ...downPayment,
+                              [downPayment.type === 'percentage' ? 'percentage' : 'amount']: parseFloat(e.target.value) || 0
+                            })}
+                            className="input-modern w-full px-2 py-1.5 text-xs text-right"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs text-blue-200 mb-1">
-                      {downPayment.type === 'percentage' ? 'نسبة العربون (%)' : 'مبلغ العربون ($)'}
-                    </label>
+                </div>
+
+                {/* معلومات العميل المختصرة */}
+                <div className="mt-3">
+                  <h4 className="text-xs md:text-sm text-white font-bold mb-2">معلومات العميل</h4>
+                  <div className="grid grid-cols-2 gap-2">
                     <input
-                      type="number"
-                      value={downPayment.type === 'percentage' ? downPayment.percentage : downPayment.amount}
-                      onChange={(e) => setDownPayment({
-                        ...downPayment, 
-                        [downPayment.type === 'percentage' ? 'percentage' : 'amount']: parseFloat(e.target.value) || 0
-                      })}
-                      className="input-modern w-full px-2 py-2 text-xs text-right"
-                      placeholder="0"
+                      type="text"
+                      value={customerInfo.name}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                      className="input-modern w-full px-2 py-1.5 text-xs text-right"
+                      placeholder="اسم العميل"
+                    />
+                    <input
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                      className="input-modern w-full px-2 py-1.5 text-xs text-right"
+                      placeholder="رقم الهاتف"
                     />
                   </div>
                 </div>
-                
-                {/* معاينة العربون */}
-                <div className="bg-gray-800 rounded-lg p-3">
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">مبلغ العربون:</span>
-                      <span className="text-white font-bold">${getDownPaymentAmount().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">المبلغ المتبقي:</span>
-                      <span className="text-white font-bold">${getRemainingAmount().toFixed(2)}</span>
-                    </div>
+
+                {/* طريقة الدفع */}
+                <div className="mt-3">
+                  <h4 className="text-xs md:text-sm text-white font-bold mb-2">طريقة الدفع</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => setPaymentMethod('cash')} className={`p-2 rounded-lg border-2 text-xs ${paymentMethod==='cash' ? 'border-green-500 bg-green-500 bg-opacity-20 text-green-300' : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200'}`}>نقدي</button>
+                    <button onClick={() => setPaymentMethod('wallet')} className={`p-2 rounded-lg border-2 text-xs ${paymentMethod==='wallet' ? 'border-purple-500 bg-purple-500 bg-opacity-20 text-purple-300' : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200'}`}>محفظة</button>
+                    <button onClick={() => setPaymentMethod('instapay')} className={`p-2 rounded-lg border-2 text-xs ${paymentMethod==='instapay' ? 'border-blue-500 bg-blue-500 bg-opacity-20 text-blue-300' : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200'}`}>انستا باي</button>
                   </div>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
 
-        {/* معلومات العميل (إجبارية) */}
-        <div className="mb-4 md:mb-6">
-          <h3 className="font-bold text-white mb-3 md:mb-4 text-sm md:text-base">معلومات العميل *</h3>
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <div>
-              <label className="block text-xs text-blue-200 mb-1">اسم العميل *</label>
-              <input
-                type="text"
-                value={customerInfo.name}
-                onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                className={`input-modern w-full px-2 py-2 text-xs text-right ${
-                  customerInfo.name && !validateCustomerName(customerInfo.name).isValid 
-                    ? 'border-red-500 bg-red-500 bg-opacity-10' 
-                    : ''
-                }`}
-                placeholder="اسم العميل (مطلوب)"
-                required
-              />
-              {customerInfo.name && !validateCustomerName(customerInfo.name).isValid && (
-                <p className="text-red-400 text-xs mt-1">{validateCustomerName(customerInfo.name).message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-blue-200 mb-1">رقم الهاتف *</label>
-              <input
-                type="tel"
-                value={customerInfo.phone}
-                onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                className={`input-modern w-full px-2 py-2 text-xs text-right ${
-                  customerInfo.phone && !validatePhoneNumber(customerInfo.phone).isValid 
-                    ? 'border-red-500 bg-red-500 bg-opacity-10' 
-                    : ''
-                }`}
-                placeholder="رقم الهاتف (مطلوب)"
-                required
-              />
-              {customerInfo.phone && !validatePhoneNumber(customerInfo.phone).isValid && (
-                <p className="text-red-400 text-xs mt-1">{validatePhoneNumber(customerInfo.phone).message}</p>
-              )}
-            </div>
+                {/* المجموع وأزرار العمل */}
+                <div className="mt-3 border-t border-white border-opacity-10 pt-3">
+                  <div className="space-y-1 mb-2">
+                    <div className="flex justify-between text-xs"><span className="text-blue-200">المجموع الفرعي</span><span className="text-white">{getSubtotal().toFixed(2)} جنيه</span></div>
+                    {getDiscountAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-green-200">الخصم</span><span className="text-green-300">-{getDiscountAmount().toFixed(2)} جنيه</span></div>)}
+                    {taxes.enabled && getTaxAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-orange-200">{taxes.name} ({taxes.vat}%)</span><span className="text-orange-300">{getTaxAmount().toFixed(2)} جنيه</span></div>)}
+                    {downPayment.enabled && getDownPaymentAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-yellow-200">العربون</span><span className="text-yellow-300">{getDownPaymentAmount().toFixed(2)} جنيه</span></div>)}
+                    <div className="flex justify-between items-center pt-1"><span className="text-white font-bold text-sm">{downPayment.enabled && getDownPaymentAmount() > 0 ? 'المتبقي' : 'الإجمالي'}</span><span className="text-white font-bold text-base">{downPayment.enabled && getDownPaymentAmount() > 0 ? getRemainingAmount().toFixed(2) : getTotal().toFixed(2)} جنيه</span></div>
+                  </div>
+                  <button onClick={showInvoiceSummaryModal} disabled={cart.length === 0 || !activeShift} className="btn-primary w-full py-2 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+                    <div className="flex items-center justify-center"><DollarSign className="h-4 w-4 mr-2" /> {!activeShift ? 'بدء وردية أولاً' : 'إتمام البيع'}</div>
+            </button>
+                </div>
           </div>
-        </div>
-
-        {/* طرق الدفع */}
-        <div className="mb-4 md:mb-6 animate-fadeInRight" style={{animationDelay: '0.6s'}}>
-          <h3 className="font-bold text-white mb-4 md:mb-5 text-sm md:text-base">طريقة الدفع</h3>
-          <div className="grid grid-cols-3 gap-3 md:gap-4">
-            <button
-              onClick={() => setPaymentMethod('cash')}
-              className={`p-4 md:p-5 rounded-2xl md:rounded-3xl border-2 flex flex-col items-center transition-all duration-300 touch-target ${
-                paymentMethod === 'cash' 
-                  ? 'border-green-500 bg-green-500 bg-opacity-20 text-green-300 shadow-glow' 
-                  : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200 hover:bg-opacity-20'
-              }`}
-            >
-              <Banknote className="h-6 w-6 md:h-7 md:w-7 mb-3 md:mb-4" />
-              <span className="text-sm md:text-base font-semibold">نقدي</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('wallet')}
-              className={`p-4 md:p-5 rounded-2xl md:rounded-3xl border-2 flex flex-col items-center transition-all duration-300 touch-target ${
-                paymentMethod === 'wallet' 
-                  ? 'border-purple-500 bg-purple-500 bg-opacity-20 text-purple-300 shadow-glow' 
-                  : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200 hover:bg-opacity-20'
-              }`}
-            >
-              <CreditCard className="h-6 w-6 md:h-7 md:w-7 mb-3 md:mb-4" />
-              <span className="text-sm md:text-base font-semibold">محفظة</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('instapay')}
-              className={`p-4 md:p-5 rounded-2xl md:rounded-3xl border-2 flex flex-col items-center transition-all duration-300 touch-target ${
-                paymentMethod === 'instapay' 
-                  ? 'border-blue-500 bg-blue-500 bg-opacity-20 text-blue-300 shadow-glow' 
-                  : 'border-blue-500 border-opacity-30 bg-white bg-opacity-10 text-blue-200 hover:bg-opacity-20'
-              }`}
-            >
-              <CreditCard className="h-6 w-6 md:h-7 md:w-7 mb-3 md:mb-4" />
-              <span className="text-sm md:text-base font-semibold">انستا باي</span>
-            </button>
-          </div>
-        </div>
-
-        {/* أزرار العمل */}
-        <div className="space-y-3 md:space-y-4 animate-fadeInRight" style={{animationDelay: '0.7s'}}>
-          <button
-            onClick={showInvoiceSummaryModal}
-            disabled={cart.length === 0 || !activeShift}
-            className="btn-primary w-full py-4 md:py-5 text-sm md:text-base font-bold payment-button disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center justify-center">
-              <DollarSign className="h-6 w-6 md:h-7 md:w-7 mr-3 md:mr-4" />
-              {!activeShift ? 'بدء وردية أولاً' : 'إتمام البيع'}
             </div>
-          </button>
+          )}
         </div>
-      </div>
-        </div>
-        )}
-      </div>
 
       {/* نافذة ملخص الفاتورة */}
       {showInvoiceSummary && (
@@ -1347,12 +1160,12 @@ Elking Store
                   <p className="text-gray-400 text-sm">تأكد من صحة البيانات قبل الإتمام</p>
                 </div>
               </div>
-          <button
+            <button
                 onClick={cancelSale}
                 className="text-gray-400 hover:text-white transition-colors"
           >
                 <X className="h-6 w-6" />
-          </button>
+            </button>
         </div>
 
             {/* معلومات العميل */}
@@ -1453,12 +1266,12 @@ Elking Store
                     {paymentMethod === 'cash' ? 'نقدي' : paymentMethod === 'wallet' ? 'محفظة إلكترونية' : 'دفع فوري'}
                   </span>
                 </div>
-              </div>
-            </div>
+          </div>
+        </div>
 
             {/* أزرار الإجراءات */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
+          <button
                 onClick={cancelSale}
                 className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 flex items-center justify-center"
               >
@@ -1472,12 +1285,10 @@ Elking Store
                 <DollarSign className="h-5 w-5 mr-2" />
                 تأكيد البيع
           </button>
-          </div>
         </div>
+      </div>
         </div>
       )}
-      </div>
-      </div>
     </div>
   );
 };

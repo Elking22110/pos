@@ -26,6 +26,7 @@ export const OPERATION_TYPES = {
   PRODUCT_UPDATED: 'product_updated',
   PRODUCT_DELETED: 'product_deleted',
   CATEGORY_ADDED: 'category_added',
+  CATEGORY_UPDATED: 'category_updated',
   CATEGORY_DELETED: 'category_deleted',
   SALE_COMPLETED: 'sale_completed',
   CART_UPDATED: 'cart_updated',
@@ -87,6 +88,7 @@ const NotificationItem = ({ notification, onRemove }) => {
       case OPERATION_TYPES.PRODUCT_DELETED:
         return <Package className="h-4 w-4" />;
       case OPERATION_TYPES.CATEGORY_ADDED:
+      case OPERATION_TYPES.CATEGORY_UPDATED:
       case OPERATION_TYPES.CATEGORY_DELETED:
         return <Package className="h-4 w-4" />;
       case OPERATION_TYPES.SALE_COMPLETED:
@@ -276,6 +278,17 @@ export const NotificationProvider = ({ children }) => {
     });
   }, [addNotification]);
 
+  const notifyCategoryUpdated = useCallback((oldName, newName) => {
+    addNotification({
+      type: NOTIFICATION_TYPES.SUCCESS,
+      operation: OPERATION_TYPES.CATEGORY_UPDATED,
+      title: '🔄 تم تعديل الفئة',
+      message: `تم تعديل الفئة من "${oldName}" إلى "${newName}"`,
+      details: `تم حفظ التغييرات`,
+      duration: 3000
+    });
+  }, [addNotification]);
+
   const notifyCategoryDeleted = useCallback((categoryName) => {
     addNotification({
       type: NOTIFICATION_TYPES.WARNING,
@@ -431,6 +444,7 @@ export const NotificationProvider = ({ children }) => {
     notifyProductUpdated,
     notifyProductDeleted,
     notifyCategoryAdded,
+    notifyCategoryUpdated,
     notifyCategoryDeleted,
     notifySaleCompleted,
     notifyCartUpdated,

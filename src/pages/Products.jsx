@@ -24,6 +24,7 @@ const Products = () => {
     notifyProductUpdated, 
     notifyProductDeleted, 
     notifyCategoryAdded, 
+    notifyCategoryUpdated,
     notifyCategoryDeleted,
     notifyStockLow,
     notifyValidationError,
@@ -499,20 +500,58 @@ const Products = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="input-modern pr-12 md:pr-14 pl-3 md:pl-4 py-3 md:py-4 text-base md:text-lg text-right font-medium appearance-none bg-gray-800 border-gray-600 text-white"
               >
+                
                 {categoryNames.map(category => (
                   <option key={category} value={category} className="bg-gray-800 text-white">{category}</option>
                 ))}
               </select>
             </div>
 
-            <button className="btn-primary flex items-center px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-semibold">
-              <Download className="h-5 w-5 md:h-6 md:w-6 mr-2" />
-              تصدير
+            <button
+              onClick={() => {
+                if (selectedCategory === 'الكل' || !selectedCategory) { return; }
+                const newName = window.prompt('أدخل اسم الفئة الجديد', selectedCategory);
+                if (!newName || newName.trim() === '' || newName === selectedCategory) return;
+                if (categories.some(c => c.name === newName)) { notifyDuplicateError(newName, 'فئة'); return; }
+                const updatedCategories = categories.map(c => c.name === selectedCategory ? { ...c, name: newName } : c);
+                setCategories(updatedCategories);
+                localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
+                const updatedProductsLocal = products.map(p => p.category === selectedCategory ? { ...p, category: newName } : p);
+                setProducts(updatedProductsLocal);
+                localStorage.setItem('products', JSON.stringify(updatedProductsLocal));
+                notifyCategoryUpdated(selectedCategory, newName);
+                setSelectedCategory(newName);
+              }}
+              disabled={selectedCategory === 'الكل' || !selectedCategory}
+              className={`btn-primary flex items-center px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-semibold ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Edit className="h-5 w-5 md:h-6 md:w-6 mr-2" />
+              تعديل الفئة
             </button>
             
-            <button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 md:px-6 py-3 md:py-4 rounded-2xl md:rounded-3xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center text-sm md:text-base font-semibold shadow-lg">
-              <Upload className="h-5 w-5 md:h-6 md:w-6 mr-2" />
-              استيراد
+            <button
+              onClick={() => {
+                if (selectedCategory === 'الكل' || !selectedCategory) { return; }
+                const productsInCategory = products.filter(p => p.category === selectedCategory);
+                if (!window.confirm(`سيتم حذف الفئة "${selectedCategory}" مع ${productsInCategory.length} منتج تابع لها. هل تريد المتابعة؟`)) return;
+                // حذف المنتجات التابعة لهذه الفئة
+                const remainingProducts = products.filter(p => p.category !== selectedCategory);
+                setProducts(remainingProducts);
+                localStorage.setItem('products', JSON.stringify(remainingProducts));
+
+                // حذف الفئة نفسها
+                const updatedCategories = categories.filter(c => c.name !== selectedCategory);
+                setCategories(updatedCategories);
+                localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
+
+                notifyCategoryDeleted(selectedCategory);
+                setSelectedCategory('الكل');
+              }}
+              disabled={selectedCategory === 'الكل' || !selectedCategory}
+              className={`bg-gradient-to-r from-red-600 to-pink-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-2xl md:rounded-3xl hover:from-red-700 hover:to-pink-700 transition-all duration-300 flex items-center text-sm md:text-base font-semibold shadow-lg ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Trash2 className="h-5 w-5 md:h-6 md:w-6 mr-2" />
+              حذف الفئة
             </button>
           </div>
         </div>
@@ -532,6 +571,13 @@ const Products = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white divide-opacity-10">
+                {selectedCategory === '' && (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-8 text-center text-blue-300 text-sm">
+                      اختر فئة من الفلترة لعرض المنتجات
+                    </td>
+                  </tr>
+                )}
                 {filteredProducts.map((product, index) => (
                   <tr key={product.id} className="hover:bg-white hover:bg-opacity-5 transition-all duration-300">
                     <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
