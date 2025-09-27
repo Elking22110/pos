@@ -59,6 +59,15 @@ const ShiftManager = () => {
     setCurrentShift(newShift);
     localStorage.setItem('activeShift', JSON.stringify(newShift));
     
+    // حفظ الوردية في قاعدة البيانات أيضاً للحماية من فقدان البيانات
+    try {
+      const { databaseManager } = await import('../utils/databaseManager');
+      await databaseManager.add('shifts', newShift);
+      console.log('✅ تم حفظ الوردية في قاعدة البيانات');
+    } catch (error) {
+      console.error('خطأ في حفظ الوردية في قاعدة البيانات:', error);
+    }
+    
     setMessage('تم بدء الوردية بنجاح!');
     setTimeout(() => setMessage(''), 3000);
   };

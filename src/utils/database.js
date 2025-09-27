@@ -322,23 +322,12 @@ class DatabaseManager {
     return stats;
   }
 
-  // تنظيف قاعدة البيانات
+  // تنظيف قاعدة البيانات - معطل لحماية البيانات
   async cleanup() {
     try {
-      const stores = ['products', 'categories', 'customers', 'sales', 'shifts', 'returns', 'users', 'settings'];
-      
-      for (const store of stores) {
-        const transaction = this.db.transaction([store], 'readwrite');
-        const objectStore = transaction.objectStore(store);
-        
-        await new Promise((resolve, reject) => {
-          const request = objectStore.clear();
-          request.onsuccess = () => resolve();
-          request.onerror = () => reject(request.error);
-        });
-      }
-
-      return true;
+      // تم تعطيل هذه الوظيفة لحماية البيانات من الحذف التلقائي
+      console.log('⚠️ تم تعطيل تنظيف قاعدة البيانات لحماية البيانات');
+      throw new Error('تم تعطيل تنظيف قاعدة البيانات لحماية البيانات');
     } catch (error) {
       console.error('خطأ في تنظيف قاعدة البيانات:', error);
       throw error;

@@ -256,13 +256,13 @@ const Settings = () => {
   const saveSettings = () => {
     try {
       // حفظ الإعدادات العامة
-      localStorage.setItem('pos-settings', JSON.stringify(settings));
+    localStorage.setItem('pos-settings', JSON.stringify(settings));
 
       // إرسال إشارة لحفظ إعدادات المتجر داخل مكون StoreSettings (الهاتف، العنوان، ...)
       const evt = new Event('save-store-settings');
       window.dispatchEvent(evt);
       
-      alert('تم حفظ الإعدادات بنجاح!');
+    alert('تم حفظ الإعدادات بنجاح!');
     } catch (error) {
       console.error('خطأ في حفظ الإعدادات:', error);
       alert('حدث خطأ في حفظ الإعدادات!');
@@ -480,8 +480,17 @@ const Settings = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-white">إدارة المستخدمين</h2>
         <button
-          onClick={() => setShowAddUserModal(true)}
-          className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors flex items-center border border-green-500 border-opacity-30"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowAddUserModal(true);
+          }}
+          className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center border border-green-500 border-opacity-30 min-h-[40px] cursor-pointer"
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 10,
+            position: 'relative'
+          }}
         >
           <Plus className="h-4 w-4 mr-2" />
           إضافة مستخدم
@@ -557,12 +566,21 @@ const Settings = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
-                      onClick={() => toggleUserStatus(user.id)}
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleUserStatus(user.id);
+                      }}
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full transition-all duration-200 min-h-[30px] cursor-pointer ${
                         user.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-red-100 text-red-800 hover:bg-red-200'
                       }`}
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10,
+                        position: 'relative'
+                      }}
                     >
                       {user.status === 'active' ? 'نشط' : 'غير نشط'}
                     </button>
@@ -575,16 +593,34 @@ const Settings = () => {
                       {!(user.name === 'admin' && user.role === 'admin') ? (
                         <>
                           <button
-                            onClick={() => openEditModal(user)}
-                            className="text-blue-400 hover:text-blue-300"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openEditModal(user);
+                            }}
+                            className="text-blue-400 hover:text-blue-300 transition-all duration-200 p-2 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg min-w-[35px] min-h-[35px] flex items-center justify-center cursor-pointer"
                             title="تعديل"
+                            style={{ 
+                              pointerEvents: 'auto',
+                              zIndex: 10,
+                              position: 'relative'
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => deleteUser(user.id)}
-                            className="text-red-400 hover:text-red-300"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteUser(user.id);
+                            }}
+                            className="text-red-400 hover:text-red-300 transition-all duration-200 p-2 hover:bg-red-500 hover:bg-opacity-20 rounded-lg min-w-[35px] min-h-[35px] flex items-center justify-center cursor-pointer"
                             title="حذف"
+                            style={{ 
+                              pointerEvents: 'auto',
+                              zIndex: 10,
+                              position: 'relative'
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1006,8 +1042,17 @@ const Settings = () => {
           </div>
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
             <button
-              onClick={saveSettings}
-              className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                saveSettings();
+              }}
+              className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold min-h-[40px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
             >
               <Save className="h-4 w-4 md:h-5 md:w-5 mr-2" />
               حفظ الإعدادات
@@ -1025,12 +1070,21 @@ const Settings = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab(tab.id);
+                    }}
+                    className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 min-h-[50px] cursor-pointer ${
                       activeTab === tab.id
                         ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30'
                         : 'text-white hover:bg-white hover:bg-opacity-10'
                     }`}
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10,
+                      position: 'relative'
+                    }}
                   >
                     <Icon className="h-5 w-5 mr-3" />
                     <span className="font-medium">{tab.name}</span>
@@ -1045,13 +1099,28 @@ const Settings = () => {
             <h3 className="font-bold text-white mb-4">إدارة الإعدادات</h3>
             <div className="space-y-3">
               <button
-                onClick={exportSettings}
-                className="w-full bg-blue-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors flex items-center justify-center border border-blue-500 border-opacity-30"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  exportSettings();
+                }}
+                className="w-full bg-blue-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center border border-blue-500 border-opacity-30 min-h-[40px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
                 <Download className="h-4 w-4 mr-2" />
                 تصدير الإعدادات
               </button>
-              <label className="w-full bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors flex items-center justify-center cursor-pointer border border-green-500 border-opacity-30">
+              <label className="w-full bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center cursor-pointer border border-green-500 border-opacity-30 min-h-[40px]"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 استيراد الإعدادات
                 <input
@@ -1062,8 +1131,17 @@ const Settings = () => {
                 />
               </label>
               <button
-                onClick={resetSettings}
-                className="w-full bg-red-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors flex items-center justify-center border border-red-500 border-opacity-30"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  resetSettings();
+                }}
+                className="w-full bg-red-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center border border-red-500 border-opacity-30 min-h-[40px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 إعادة تعيين

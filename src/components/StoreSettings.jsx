@@ -220,13 +220,24 @@ const StoreSettings = () => {
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-300">تفعيل الضريبة</label>
               <button
-                onClick={() => handleInputChange('taxEnabled', !storeInfo.taxEnabled)}
-                className={`w-12 h-6 rounded-full transition-colors ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleInputChange('taxEnabled', !storeInfo.taxEnabled);
+                }}
+                className={`w-16 h-8 rounded-full transition-all duration-200 cursor-pointer ${
                   storeInfo.taxEnabled ? 'bg-green-500' : 'bg-gray-500'
                 }`}
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative',
+                  minWidth: '64px',
+                  minHeight: '32px'
+                }}
               >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                  storeInfo.taxEnabled ? 'translate-x-6' : 'translate-x-1'
+                <div className={`w-6 h-6 bg-white rounded-full transition-all duration-200 ${
+                  storeInfo.taxEnabled ? 'translate-x-8' : 'translate-x-1'
                 }`}></div>
               </button>
             </div>

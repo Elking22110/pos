@@ -26,7 +26,6 @@ const Products = () => {
     notifyCategoryAdded, 
     notifyCategoryUpdated,
     notifyCategoryDeleted,
-    notifyStockLow,
     notifyValidationError,
     notifyDuplicateError
   } = useNotifications();
@@ -125,12 +124,12 @@ const Products = () => {
 
   // تحميل البيانات من localStorage عند بدء التطبيق
   useEffect(() => {
-    // تحميل المنتجات
+    // تحميل البيانات الموجودة بدلاً من حذفها
     const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-    if (savedProducts.length > 0) {
-      setProducts(savedProducts);
-    } else {
-      // المنتجات الافتراضية إذا لم تكن موجودة
+    const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+    
+    // إذا لم توجد بيانات، إضافة بيانات افتراضية فقط
+    if (savedProducts.length === 0) {
       const defaultProducts = [
         { id: 1, name: 'حذاء رسمي أسود جلد طبيعي', price: 450, category: 'أحذية', stock: 15, minStock: 5 },
         { id: 2, name: 'بنطلون رسمي كحلي قطني', price: 180, category: 'بناطيل', stock: 25, minStock: 8 },
@@ -139,38 +138,54 @@ const Products = () => {
         { id: 5, name: 'حذاء بني جلد طبيعي', price: 380, category: 'أحذية', stock: 18, minStock: 6 },
         { id: 6, name: 'بنطلون أسود رسمي', price: 160, category: 'بناطيل', stock: 22, minStock: 7 },
         { id: 7, name: 'قميص أزرق فاتح', price: 95, category: 'قمصان', stock: 35, minStock: 12 },
-        { id: 8, name: 'جاكيت أسود رسمي', price: 320, category: 'جواكت', stock: 8, minStock: 3 },
-        { id: 9, name: 'حذاء أسود جلدي ناعم', price: 280, category: 'أحذية', stock: 20, minStock: 7 },
-        { id: 10, name: 'بنطلون رمادي رسمي', price: 140, category: 'بناطيل', stock: 28, minStock: 9 },
-        { id: 11, name: 'قميص رمادي رسمي', price: 110, category: 'قمصان', stock: 32, minStock: 11 },
-        { id: 12, name: 'جاكيت بني صوف', price: 290, category: 'جواكت', stock: 10, minStock: 4 }
+        { id: 8, name: 'جاكيت أسود رسمي', price: 320, category: 'جواكت', stock: 2, minStock: 3 },
+        { id: 21, name: 'حذاء رسمي أسود', price: 450, category: 'أحذية', stock: 3, minStock: 5 },
+        { id: 9, name: 'حذاء رياضي أبيض', price: 280, category: 'أحذية', stock: 20, minStock: 8 },
+        { id: 10, name: 'بنطلون جينز أزرق', price: 140, category: 'بناطيل', stock: 28, minStock: 10 },
+        { id: 11, name: 'قميص وردي قطني', price: 110, category: 'قمصان', stock: 5, minStock: 8 },
+        { id: 12, name: 'جاكيت بني صوف', price: 380, category: 'جواكت', stock: 2, minStock: 3 },
+        { id: 13, name: 'حذاء أسود كاجوال', price: 220, category: 'أحذية', stock: 16, minStock: 5 },
+        { id: 14, name: 'بنطلون رمادي رسمي', price: 170, category: 'بناطيل', stock: 20, minStock: 6 },
+        { id: 15, name: 'قميص أخضر فاتح', price: 100, category: 'قمصان', stock: 32, minStock: 10 },
+        { id: 16, name: 'جاكيت أزرق داكن', price: 340, category: 'جواكت', stock: 14, minStock: 4 },
+        { id: 17, name: 'حذاء أحمر جلد', price: 420, category: 'أحذية', stock: 12, minStock: 4 },
+        { id: 18, name: 'بنطلون بيج كاجوال', price: 150, category: 'بناطيل', stock: 24, minStock: 8 },
+        { id: 19, name: 'قميص أصفر قطني', price: 105, category: 'قمصان', stock: 28, minStock: 9 },
+        { id: 20, name: 'جاكيت أخضر داكن', price: 360, category: 'جواكت', stock: 1, minStock: 3 }
       ];
+      
       setProducts(defaultProducts);
       localStorage.setItem('products', JSON.stringify(defaultProducts));
-    }
-
-    // تحميل الفئات
-    const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
-    if (savedCategories.length > 0) {
-      setCategories(savedCategories);
+      console.log('تم إضافة منتجات افتراضية جديدة:', defaultProducts.length, 'منتج');
     } else {
-      // الفئات الافتراضية إذا لم تكن موجودة
+      setProducts(savedProducts);
+      console.log('تم تحميل المنتجات الموجودة:', savedProducts.length, 'منتج');
+    }
+    
+    // إذا لم توجد فئات، إضافة فئات افتراضية فقط
+    if (savedCategories.length === 0) {
       const defaultCategories = [
-        { name: 'أحذية', description: 'جميع أنواع الأحذية' },
-        { name: 'بناطيل', description: 'بناطيل رسمية ورياضية' },
-        { name: 'قمصان', description: 'قمصان رسمية ورياضية' },
-        { name: 'جواكت', description: 'جواكت رسمية ورياضية' },
-        { name: 'إكسسوارات', description: 'إكسسوارات متنوعة' }
+        { name: 'أحذية', description: 'جميع أنواع الأحذية الرسمية والرياضية' },
+        { name: 'بناطيل', description: 'بناطيل رسمية ورياضية وجينز' },
+        { name: 'قمصان', description: 'قمصان رسمية ورياضية بألوان متنوعة' },
+        { name: 'جواكت', description: 'جواكت رسمية ورياضية بمواد مختلفة' }
       ];
+      
       setCategories(defaultCategories);
       localStorage.setItem('productCategories', JSON.stringify(defaultCategories));
+      console.log('تم إضافة فئات افتراضية جديدة:', defaultCategories.length, 'فئة');
+    } else {
+      setCategories(savedCategories);
+      console.log('تم تحميل الفئات الموجودة:', savedCategories.length, 'فئة');
     }
   }, []);
 
-  // تحميل صور المنتجات
+  // تحميل صور المنتجات الموجودة
   useEffect(() => {
+    // تحميل صور المنتجات الموجودة بدلاً من حذفها
     const savedImages = JSON.parse(localStorage.getItem('productImages') || '{}');
     setProductImages(savedImages);
+    console.log('تم تحميل صور المنتجات الموجودة:', Object.keys(savedImages).length, 'صورة');
   }, []);
 
   // إدارة صور المنتجات
@@ -381,16 +396,36 @@ const Products = () => {
   };
 
   const lowStockProducts = products.filter(p => p.stock <= p.minStock);
+  console.log('=== حساب المنتجات منخفضة المخزون ===');
+  console.log('المنتجات:', products.length);
+  console.log('المنتجات منخفضة المخزون:', lowStockProducts.length);
+  console.log('تفاصيل المنتجات منخفضة المخزون:', lowStockProducts.map(p => `${p.name}: ${p.stock}/${p.minStock}`));
+  console.log('جميع المنتجات:', products.map(p => `${p.name}: ${p.stock}/${p.minStock}`));
+  console.log('=== نهاية الحساب ===');
 
-  // فحص المخزون المنخفض وإرسال تنبيهات
+  // فحص المخزون المنخفض (بدون إشعارات)
   useEffect(() => {
-    if (lowStockProducts.length > 0) {
-      // إرسال إشعار لكل منتج منخفض المخزون
+    console.log('useEffect triggered - products:', products.length, 'lowStock:', lowStockProducts.length);
+    if (products.length > 0 && lowStockProducts.length > 0) {
+      console.log('منتجات منخفضة المخزون:', lowStockProducts.length);
+      // تم إلغاء الإشعارات - فقط تتبع في console
       lowStockProducts.forEach(product => {
-        notifyStockLow(product.name, product.stock, product.minStock);
+        console.log('منتج منخفض المخزون:', product.name, 'المخزون:', product.stock, 'الحد الأدنى:', product.minStock);
       });
+    } else {
+      console.log('لا توجد منتجات منخفضة المخزون أو المنتجات غير محملة');
     }
-  }, [lowStockProducts.length, notifyStockLow]);
+  }, [products, lowStockProducts]);
+
+  // useEffect منفصل لتحديث المنتجات منخفضة المخزون
+  useEffect(() => {
+    console.log('=== useEffect منفصل للمنتجات منخفضة المخزون ===');
+    console.log('المنتجات في useEffect:', products.length);
+    const calculatedLowStock = products.filter(p => p.stock <= p.minStock);
+    console.log('المنتجات منخفضة المخزون المحسوبة:', calculatedLowStock.length);
+    console.log('تفاصيل المنتجات منخفضة المخزون المحسوبة:', calculatedLowStock.map(p => `${p.name}: ${p.stock}/${p.minStock}`));
+    console.log('=== نهاية useEffect منفصل ===');
+  }, [products]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -412,15 +447,33 @@ const Products = () => {
           </div>
           <div className="flex space-x-2">
           <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowAddModal(true);
+            }}
+            className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold min-h-[40px] cursor-pointer"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 10,
+              position: 'relative'
+            }}
           >
             <Plus className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
             إضافة منتج جديد
           </button>
             <button
-              onClick={() => setShowAddCategoryModal(true)}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-3 md:px-4 py-2 md:py-3 rounded-lg text-xs md:text-xs lg:text-sm font-semibold transition-all duration-300 flex items-center"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowAddCategoryModal(true);
+              }}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-3 md:px-4 py-2 md:py-3 rounded-lg text-xs md:text-xs lg:text-sm font-semibold transition-all duration-300 flex items-center min-h-[40px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
             >
               <FolderPlus className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
               إضافة فئة جديدة
@@ -467,9 +520,19 @@ const Products = () => {
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">منخفضة المخزون</p>
                 <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{lowStockProducts.length}</p>
+                {console.log('لوحة التحكم - عدد المنتجات منخفضة المخزون:', lowStockProducts.length)}
                 <div className="flex items-center text-xs">
                   <span className="text-orange-300 font-medium">تحتاج إعادة تموين</span>
                 </div>
+                {lowStockProducts.length > 0 && (
+                  <div className="mt-2 text-xs text-orange-200 max-h-20 overflow-y-auto">
+                    {lowStockProducts.map(product => (
+                      <div key={product.id} className="truncate">
+                        {product.name}: {product.stock}/{product.minStock}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
                 <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
@@ -508,7 +571,9 @@ const Products = () => {
             </div>
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (selectedCategory === 'الكل' || !selectedCategory) { return; }
                 const newName = window.prompt('أدخل اسم الفئة الجديد', selectedCategory);
                 if (!newName || newName.trim() === '' || newName === selectedCategory) return;
@@ -523,14 +588,21 @@ const Products = () => {
                 setSelectedCategory(newName);
               }}
               disabled={selectedCategory === 'الكل' || !selectedCategory}
-              className={`btn-primary flex items-center px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-semibold ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`btn-primary flex items-center px-4 md:px-6 py-3 md:py-4 text-sm md:text-base font-semibold min-h-[50px] cursor-pointer ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ 
+                pointerEvents: selectedCategory === 'الكل' || !selectedCategory ? 'none' : 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
             >
               <Edit className="h-5 w-5 md:h-6 md:w-6 mr-2" />
               تعديل الفئة
             </button>
             
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (selectedCategory === 'الكل' || !selectedCategory) { return; }
                 const productsInCategory = products.filter(p => p.category === selectedCategory);
                 if (!window.confirm(`سيتم حذف الفئة "${selectedCategory}" مع ${productsInCategory.length} منتج تابع لها. هل تريد المتابعة؟`)) return;
@@ -548,7 +620,12 @@ const Products = () => {
                 setSelectedCategory('الكل');
               }}
               disabled={selectedCategory === 'الكل' || !selectedCategory}
-              className={`bg-gradient-to-r from-red-600 to-pink-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-2xl md:rounded-3xl hover:from-red-700 hover:to-pink-700 transition-all duration-300 flex items-center text-sm md:text-base font-semibold shadow-lg ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`bg-gradient-to-r from-red-600 to-pink-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-2xl md:rounded-3xl hover:from-red-700 hover:to-pink-700 transition-all duration-300 flex items-center text-sm md:text-base font-semibold shadow-lg min-h-[50px] cursor-pointer ${selectedCategory === 'الكل' || !selectedCategory ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ 
+                pointerEvents: selectedCategory === 'الكل' || !selectedCategory ? 'none' : 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
             >
               <Trash2 className="h-5 w-5 md:h-6 md:w-6 mr-2" />
               حذف الفئة
@@ -603,17 +680,35 @@ const Products = () => {
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-lg md:rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100">
                             <div className="flex space-x-1">
                               <button
-                                onClick={() => document.getElementById(`image-upload-${product.id}`).click()}
-                                className="p-1 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors duration-300"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  document.getElementById(`image-upload-${product.id}`).click();
+                                }}
+                                className="p-1 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors duration-300 min-w-[24px] min-h-[24px] cursor-pointer"
                                 title="رفع صورة"
+                                style={{ 
+                                  pointerEvents: 'auto',
+                                  zIndex: 10,
+                                  position: 'relative'
+                                }}
                               >
                                 <Camera className="h-3 w-3 text-white" />
                               </button>
                               {productImages[product.id] && (
                                 <button
-                                  onClick={() => handleImageDelete(product.id)}
-                                  className="p-1 bg-red-500 rounded-full hover:bg-red-600 transition-colors duration-300"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleImageDelete(product.id);
+                                  }}
+                                  className="p-1 bg-red-500 rounded-full hover:bg-red-600 transition-colors duration-300 min-w-[24px] min-h-[24px] cursor-pointer"
                                   title="حذف الصورة"
+                                  style={{ 
+                                    pointerEvents: 'auto',
+                                    zIndex: 10,
+                                    position: 'relative'
+                                  }}
                                 >
                                   <X className="h-3 w-3 text-white" />
                                 </button>
@@ -655,14 +750,32 @@ const Products = () => {
                     <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2 md:space-x-3">
                         <button
-                          onClick={() => handleEditProduct(product)}
-                          className="p-2 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-blue-300 hover:text-blue-200"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEditProduct(product);
+                          }}
+                          className="p-2 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-blue-300 hover:text-blue-200 min-w-[40px] min-h-[40px] cursor-pointer"
+                          style={{ 
+                            pointerEvents: 'auto',
+                            zIndex: 10,
+                            position: 'relative'
+                          }}
                         >
                           <Edit className="h-4 w-4 md:h-5 md:w-5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="p-2 bg-red-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-red-300 hover:text-red-200"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteProduct(product.id);
+                          }}
+                          className="p-2 bg-red-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-red-300 hover:text-red-200 min-w-[40px] min-h-[40px] cursor-pointer"
+                          style={{ 
+                            pointerEvents: 'auto',
+                            zIndex: 10,
+                            position: 'relative'
+                          }}
                         >
                           <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
                         </button>
@@ -749,7 +862,9 @@ const Products = () => {
             
               <div className="flex justify-end space-x-3 md:space-x-4 mt-6 md:mt-8">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setShowAddModal(false);
                     setEditingProduct(null);
                     setNewProduct({
@@ -760,13 +875,27 @@ const Products = () => {
                       minStock: ''
                     });
                   }}
-                  className="px-4 md:px-6 py-2 md:py-3 text-blue-300 hover:text-blue-200 font-semibold transition-colors duration-300"
+                  className="px-4 md:px-6 py-2 md:py-3 text-blue-300 hover:text-blue-200 font-semibold transition-colors duration-300 min-h-[40px] cursor-pointer"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10,
+                    position: 'relative'
+                  }}
                 >
                   إلغاء
                 </button>
                 <button
-                  onClick={editingProduct ? handleUpdateProduct : handleAddProduct}
-                  className="btn-primary px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-semibold"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    editingProduct ? handleUpdateProduct() : handleAddProduct();
+                  }}
+                  className="btn-primary px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-semibold min-h-[40px] cursor-pointer"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10,
+                    position: 'relative'
+                  }}
                 >
                   {editingProduct ? 'تحديث المنتج' : 'إضافة المنتج'}
                 </button>
@@ -835,17 +964,33 @@ const Products = () => {
             
             <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setShowAddCategoryModal(false);
                   setNewCategory({ name: '', description: '' });
                 }}
-                className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                className="px-4 py-2 text-gray-300 hover:text-white transition-colors min-h-[40px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
                 إلغاء
               </button>
               <button
-                onClick={handleAddCategory}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-lg transition-all"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddCategory();
+                }}
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-lg transition-all min-h-[40px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
                 إضافة الفئة
               </button>
@@ -861,8 +1006,17 @@ const Products = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-white">صورة المنتج</h2>
                 <button
-                  onClick={closeImageModal}
-                  className="p-2 bg-gray-600 rounded-full hover:bg-gray-700 transition-colors duration-300"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeImageModal();
+                  }}
+                  className="p-2 bg-gray-600 rounded-full hover:bg-gray-700 transition-colors duration-300 min-w-[40px] min-h-[40px] cursor-pointer"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10,
+                    position: 'relative'
+                  }}
                 >
                   <X className="h-5 w-5 text-white" />
                 </button>

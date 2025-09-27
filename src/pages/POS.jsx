@@ -331,7 +331,13 @@ const POS = () => {
       taxes,
       paymentMethod,
       timestamp: new Date().toLocaleString('ar-SA'),
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      downPayment: downPayment.enabled ? {
+        enabled: true,
+        amount: getDownPaymentAmount(),
+        type: downPayment.type,
+        remaining: getRemainingAmount()
+      } : null
     };
     
     console.log('تم البيع:', sale);
@@ -342,16 +348,26 @@ const POS = () => {
     // حفظ البيع في قاعدة البيانات
     await databaseManager.add('sales', encryptedSale);
     
+    // حفظ البيع في localStorage أيضاً للتأكد من ظهوره في التقارير
+    const existingSales = JSON.parse(localStorage.getItem('sales') || '[]');
+    const updatedSales = [...existingSales, sale];
+    localStorage.setItem('sales', JSON.stringify(updatedSales));
+    
     // تسجيل البيع في الوردية النشطة
     if (activeShift) {
       const updatedShift = {
         ...activeShift,
         sales: [...activeShift.sales, sale],
         totalSales: activeShift.totalSales + sale.total,
-        totalOrders: activeShift.totalOrders + 1
+        totalOrders: activeShift.totalOrders + 1,
+        status: 'active' // ضمان بقاء الوردية نشطة
       };
       setActiveShift(updatedShift);
+      localStorage.setItem('activeShift', JSON.stringify(updatedShift));
       await databaseManager.update('shifts', updatedShift);
+      console.log('✅ تم تحديث الوردية النشطة:', updatedShift);
+    } else {
+      console.log('⚠️ لا توجد وردية نشطة لتسجيل البيع');
     }
     
     // تحديث المخزون في المنتجات
@@ -371,6 +387,16 @@ const POS = () => {
     for (const product of updatedProducts) {
       await databaseManager.update('products', product);
     }
+    
+    // حفظ المنتجات المحدثة في localStorage أيضاً
+    localStorage.setItem('products', JSON.stringify(updatedProducts));
+    
+    // فحص المخزون المنخفض (بدون إشعارات)
+    updatedProducts.forEach(product => {
+      if (product.stock <= product.minStock) {
+        console.log('منتج منخفض المخزون بعد البيع:', product.name, 'المخزون:', product.stock, 'الحد الأدنى:', product.minStock);
+      }
+    });
 
     // إنشاء نسخة احتياطية تلقائية
     try {
@@ -631,11 +657,17 @@ Elking Store
             const activeShiftData = JSON.parse(savedActiveShift);
             console.log('🔎 بيانات الوردية النشطة:', activeShiftData);
             
-            if (activeShiftData && activeShiftData.status === 'active') {
+            if (activeShiftData && activeShiftData.id) {
+              // إذا كانت الوردية موجودة ولكن ليست نشطة، نحتفظ بها ونعيد تفعيلها
+              if (activeShiftData.status !== 'active') {
+                console.log('⚠️ الوردية ليست نشطة، إعادة تفعيلها:', activeShiftData);
+                activeShiftData.status = 'active';
+                localStorage.setItem('activeShift', JSON.stringify(activeShiftData));
+              }
               setActiveShift(activeShiftData);
               console.log('✅ تم العثور على وردية نشطة في activeShift:', activeShiftData);
             } else {
-              console.log('❌ الوردية المحفوظة ليست نشطة:', activeShiftData);
+              console.log('❌ الوردية المحفوظة غير صالحة:', activeShiftData);
             }
           } else {
             // البحث في مصفوفة shifts كبديل
@@ -645,14 +677,33 @@ Elking Store
             const localActiveShift = savedShifts.find(shift => shift.status === 'active');
             if (localActiveShift) {
               setActiveShift(localActiveShift);
+              localStorage.setItem('activeShift', JSON.stringify(localActiveShift));
               console.log('✅ تم العثور على وردية نشطة في shifts:', localActiveShift);
             } else {
-              console.log('❌ لا توجد وردية نشطة في أي مكان');
+              // البحث في قاعدة البيانات كحل أخير
+              try {
+                const dbShifts = await databaseManager.getAll('shifts');
+                const dbActiveShift = dbShifts.find(shift => shift.status === 'active');
+                if (dbActiveShift) {
+                  setActiveShift(dbActiveShift);
+                  localStorage.setItem('activeShift', JSON.stringify(dbActiveShift));
+                  console.log('✅ تم العثور على وردية نشطة في قاعدة البيانات:', dbActiveShift);
+                } else {
+                  console.log('❌ لا توجد وردية نشطة في أي مكان');
+                }
+              } catch (error) {
+                console.error('خطأ في البحث في قاعدة البيانات:', error);
+                console.log('❌ لا توجد وردية نشطة في أي مكان');
+              }
             }
           }
         } catch (error) {
           console.error('خطأ عام في تحميل الوردية النشطة:', error);
         }
+        
+        // حماية الوردية النشطة
+        const protectedActiveShift = localStorage.getItem('activeShift');
+        console.log('🛡️ حماية الوردية النشطة في التهيئة:', protectedActiveShift);
         
         // تحميل الفئات من قاعدة البيانات
         const dbCategories = await databaseManager.getAll('categories');
@@ -661,11 +712,10 @@ Elking Store
         } else {
           // الفئات الافتراضية إذا لم تكن موجودة
           const defaultCategories = [
-            { id: 1, name: 'أحذية', description: 'جميع أنواع الأحذية' },
-            { id: 2, name: 'بناطيل', description: 'بناطيل رسمية ورياضية' },
-            { id: 3, name: 'قمصان', description: 'قمصان رسمية ورياضية' },
-            { id: 4, name: 'جواكت', description: 'جواكت رسمية ورياضية' },
-            { id: 5, name: 'إكسسوارات', description: 'إكسسوارات متنوعة' }
+            { id: 1, name: 'أحذية', description: 'جميع أنواع الأحذية الرسمية والرياضية' },
+            { id: 2, name: 'بناطيل', description: 'بناطيل رسمية ورياضية وجينز' },
+            { id: 3, name: 'قمصان', description: 'قمصان رسمية ورياضية بألوان متنوعة' },
+            { id: 4, name: 'جواكت', description: 'جواكت رسمية ورياضية بمواد مختلفة' }
           ];
           setCategories(defaultCategories);
           
@@ -724,21 +774,61 @@ Elking Store
   // مراقبة تغييرات الفئات والمنتجات والورديات في localStorage
   useEffect(() => {
     const handleStorageChange = () => {
+      // حماية الوردية النشطة
+      const protectedActiveShift = localStorage.getItem('activeShift');
+      console.log('🛡️ حماية الوردية النشطة:', protectedActiveShift);
+      
+      // تحميل الفئات الموجودة بدلاً من حذفها
       const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      if (savedCategories.length === 0) {
+        // إضافة فئات افتراضية فقط إذا لم توجد فئات
+        const defaultCategories = [
+          { name: 'أحذية', description: 'جميع أنواع الأحذية الرسمية والرياضية' },
+          { name: 'بناطيل', description: 'بناطيل رسمية ورياضية وجينز' },
+          { name: 'قمصان', description: 'قمصان رسمية ورياضية بألوان متنوعة' },
+          { name: 'جواكت', description: 'جواكت رسمية ورياضية بمواد مختلفة' }
+        ];
+        localStorage.setItem('productCategories', JSON.stringify(defaultCategories));
+        setCategories(defaultCategories);
+        console.log('تم إضافة فئات افتراضية جديدة');
+      } else {
+        setCategories(savedCategories);
+        console.log('تم تحميل الفئات الموجودة:', savedCategories.length, 'فئة');
+      }
+      
       const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
       const savedShifts = JSON.parse(localStorage.getItem('shifts') || '[]');
       
-      setCategories(savedCategories);
       setProducts(savedProducts);
       
-      // تحديث الوردية النشطة
+      // تحديث الوردية النشطة - إصلاح مشكلة الإغلاق التلقائي
       const savedActiveShift = localStorage.getItem('activeShift');
       if (savedActiveShift) {
         const activeShiftData = JSON.parse(savedActiveShift);
-        setActiveShift(activeShiftData && activeShiftData.status === 'active' ? activeShiftData : null);
+        console.log('🔍 فحص الوردية النشطة:', activeShiftData);
+        
+        // إذا كانت الوردية موجودة ولكن ليست نشطة، نحتفظ بها ونعيد تفعيلها
+        if (activeShiftData && activeShiftData.id) {
+          if (activeShiftData.status !== 'active') {
+            console.log('⚠️ الوردية ليست نشطة، إعادة تفعيلها:', activeShiftData);
+            activeShiftData.status = 'active';
+            localStorage.setItem('activeShift', JSON.stringify(activeShiftData));
+          }
+          setActiveShift(activeShiftData);
+          console.log('✅ تم الاحتفاظ بالوردية النشطة:', activeShiftData);
+        } else {
+          setActiveShift(null);
+        }
       } else {
         const activeShift = savedShifts.find(shift => shift.status === 'active');
-        setActiveShift(activeShift || null);
+        if (activeShift) {
+          console.log('✅ تم العثور على وردية نشطة في shifts:', activeShift);
+          setActiveShift(activeShift);
+          localStorage.setItem('activeShift', JSON.stringify(activeShift));
+        } else {
+          console.log('❌ لا توجد وردية نشطة');
+          setActiveShift(null);
+        }
       }
     };
 
@@ -884,8 +974,8 @@ Elking Store
             )}
           </button>
         </div>
-          </div>
-      
+        </div>
+          
         {/* Main Content */}
         <div className="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* المنتجات - يسار */}
@@ -918,13 +1008,43 @@ Elking Store
                   <span className="text-xs text-blue-200">تصنيف الفئات:</span>
         </div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setSelectedCategory('الكل')} className={`px-3 py-1 rounded-full text-xs ${selectedCategory==='الكل'?'bg-blue-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>الكل</button>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedCategory('الكل');
+                    }} 
+                    className={`px-3 py-1 rounded-full text-xs min-h-[32px] cursor-pointer ${selectedCategory==='الكل'?'bg-blue-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10,
+                      position: 'relative'
+                    }}
+                  >
+                    الكل
+                  </button>
                   {categories.map(cat => (
-                    <button key={cat.name} onClick={() => setSelectedCategory(cat.name)} className={`px-3 py-1 rounded-full text-xs ${selectedCategory===cat.name?'bg-purple-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>{cat.name}</button>
+                    <button 
+                      key={cat.name} 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedCategory(cat.name);
+                      }} 
+                      className={`px-3 py-1 rounded-full text-xs min-h-[32px] cursor-pointer ${selectedCategory===cat.name?'bg-purple-500 text-white':'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10,
+                        position: 'relative'
+                      }}
+                    >
+                      {cat.name}
+                    </button>
           ))}
-        </div>
-      </div>
-        </div>
+                </div>
+              </div>
+            </div>
+
 
             {/* كارد المنتجات */}
             <div className="glass-card chart-enhanced flex flex-col overflow-visible">
@@ -932,7 +1052,7 @@ Elking Store
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg"><Package className="h-5 w-5 text-white" /></div>
                   <h3 className="text-white font-bold">المنتجات المتاحة</h3>
-                </div>
+        </div>
                 <div className="flex items-center gap-2">
                   <span className="text-blue-300 text-sm bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full border border-blue-500 border-opacity-30">
                     {(() => {
@@ -940,8 +1060,8 @@ Elking Store
                       return `${filtered.length} منتج`;
                     })()}
                   </span>
-              </div>
-            </div>
+      </div>
+          </div>
               <div className="p-4 overflow-visible">
                 {activeShift ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
@@ -952,7 +1072,7 @@ Elking Store
                           <div className="col-span-full flex flex-col items-center justify-center h-40 text-gray-400">
                             <Package className="h-10 w-10 opacity-50" />
                             <p className="mt-2 text-sm">لا توجد منتجات مطابقة</p>
-                          </div>
+        </div>
                         );
                       }
                       return filtered.map((product, index) => (
@@ -960,7 +1080,7 @@ Elking Store
                           <div className="h-full p-2 flex flex-col">
                             <div className="w-12 h-12 mx-auto mb-2 rounded-lg overflow-hidden shadow-lg">
                               <img src={productImages[product.id] || ImageManager.getDefaultImage(product.category)} alt={product.name} className="w-full h-full object-cover" />
-                            </div>
+            </div>
                             <div className="flex-1 flex flex-col justify-between text-right">
                               <h4 className="text-white text-[13px] font-semibold leading-snug line-clamp-2">
                                 {product.name}
@@ -972,7 +1092,7 @@ Elking Store
                                 <span className="px-2 py-0.5 rounded-md bg-blue-500 bg-opacity-15 text-blue-300 text-[11px]">
                                   مخزون: {product.stock}
                                 </span>
-        </div>
+            </div>
       </div>
           </div>
         </div>
@@ -1009,10 +1129,52 @@ Elking Store
                             <p className="text-xs text-blue-300">${item.price}</p>
                   </div>
                           <div className="flex items-center space-x-2">
-                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 bg-red-500 bg-opacity-20 rounded-lg"><Minus className="h-3 w-3 text-red-300" /></button>
+                    <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateQuantity(item.id, item.quantity - 1);
+                              }} 
+                              className="p-2 bg-red-500 bg-opacity-20 rounded-lg min-w-[32px] min-h-[32px] cursor-pointer"
+                              style={{ 
+                                pointerEvents: 'auto',
+                                zIndex: 10,
+                                position: 'relative'
+                              }}
+                            >
+                              <Minus className="h-3 w-3 text-red-300" />
+                    </button>
                             <span className="w-8 text-center text-xs font-bold text-white bg-white bg-opacity-20 px-2 py-1 rounded-lg">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 bg-green-500 bg-opacity-20 rounded-lg"><Plus className="h-3 w-3 text-green-300" /></button>
-                            <button onClick={() => removeFromCart(item.id)} className="p-2 bg-red-500 bg-opacity-20 rounded-lg"><Trash2 className="h-3 w-3 text-red-300" /></button>
+                    <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateQuantity(item.id, item.quantity + 1);
+                              }} 
+                              className="p-2 bg-green-500 bg-opacity-20 rounded-lg min-w-[32px] min-h-[32px] cursor-pointer"
+                              style={{ 
+                                pointerEvents: 'auto',
+                                zIndex: 10,
+                                position: 'relative'
+                              }}
+                            >
+                              <Plus className="h-3 w-3 text-green-300" />
+                    </button>
+                    <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                removeFromCart(item.id);
+                              }} 
+                              className="p-2 bg-red-500 bg-opacity-20 rounded-lg min-w-[32px] min-h-[32px] cursor-pointer"
+                              style={{ 
+                                pointerEvents: 'auto',
+                                zIndex: 10,
+                                position: 'relative'
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 text-red-300" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1059,8 +1221,17 @@ Elking Store
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-blue-200">تفعيل العربون</span>
             <button
-                        onClick={() => setDownPayment({ ...downPayment, enabled: !downPayment.enabled })}
-                        className={`w-10 h-5 rounded-full transition-colors ${downPayment.enabled ? 'bg-green-500' : 'bg-gray-500'}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDownPayment({ ...downPayment, enabled: !downPayment.enabled });
+                        }}
+                        className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${downPayment.enabled ? 'bg-green-500' : 'bg-gray-500'}`}
+                        style={{ 
+                          pointerEvents: 'auto',
+                          zIndex: 10,
+                          position: 'relative'
+                        }}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full transition-transform ${downPayment.enabled ? 'translate-x-5' : 'translate-x-1'}`}></div>
             </button>
@@ -1194,8 +1365,8 @@ Elking Store
                     {customerInfo.phone || 'غير محدد'}
                   </p>
                 </div>
-              </div>
-            </div>
+          </div>
+        </div>
 
             {/* المنتجات */}
             <div className="bg-white bg-opacity-5 rounded-xl p-4 mb-4">
@@ -1272,15 +1443,33 @@ Elking Store
             {/* أزرار الإجراءات */}
             <div className="flex flex-col sm:flex-row gap-3">
           <button
-                onClick={cancelSale}
-                className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 flex items-center justify-center"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  cancelSale();
+                }}
+                className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 flex items-center justify-center min-h-[50px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
                 <X className="h-5 w-5 mr-2" />
                 الرجوع
           </button>
           <button
-                onClick={confirmSale}
-                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 flex items-center justify-center"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  confirmSale();
+                }}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 flex items-center justify-center min-h-[50px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
           >
                 <DollarSign className="h-5 w-5 mr-2" />
                 تأكيد البيع

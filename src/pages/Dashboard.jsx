@@ -28,44 +28,166 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    totalSales: 1234567,
-    totalOrders: 1248,
-    totalCustomers: 342,
-    totalProducts: 156
+    totalSales: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+    totalProducts: 0
   });
 
-  const [recentOrders, setRecentOrders] = useState([
-    { id: 1, customer: 'أحمد محمد', amount: 250, time: '10:30 ص' },
-    { id: 2, customer: 'فاطمة علي', amount: 180, time: '10:15 ص' },
-    { id: 3, customer: 'محمد حسن', amount: 320, time: '10:00 ص' },
-    { id: 4, customer: 'سارة أحمد', amount: 95, time: '09:45 ص' },
-    { id: 5, customer: 'علي محمود', amount: 450, time: '09:30 ص' }
-  ]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
 
-  const [lowStockProducts, setLowStockProducts] = useState([
-    { name: 'جاكيت أسود رسمي', stock: 2, minStock: 5 },
-    { name: 'جاكيت بني صوف', stock: 1, minStock: 3 },
-    { name: 'حذاء رسمي أسود', stock: 3, minStock: 5 }
-  ]);
+  // تحليل البيانات الحقيقية
+  useEffect(() => {
+    const analyzeRealData = () => {
+      try {
+        // تحليل المبيعات
+        const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+        const totalOrders = sales.length;
+        
+        // تحليل العملاء
+        const customerMap = new Map();
+        sales.forEach(sale => {
+          if (sale.customer && sale.customer.name) {
+            customerMap.set(sale.customer.name, true);
+          }
+        });
+        const totalCustomers = customerMap.size;
+        
+        // تحليل المنتجات
+        const products = JSON.parse(localStorage.getItem('products') || '[]');
+        const totalProducts = products.length;
+        
+        // تحليل المنتجات منخفضة المخزون
+        const lowStock = products.filter(p => p.stock <= p.minStock);
+        
+        // تحليل آخر الطلبات
+        const recent = sales
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 5)
+          .map(sale => ({
+            id: sale.id,
+            customer: sale.customer?.name || 'عميل غير محدد',
+            amount: sale.total || 0,
+            time: new Date(sale.timestamp).toLocaleTimeString('ar-SA', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: true 
+            })
+          }));
+        
+        setStats({
+          totalSales,
+          totalOrders,
+          totalCustomers,
+          totalProducts
+        });
+        
+        setLowStockProducts(lowStock);
+        setRecentOrders(recent);
+        
+        console.log('تم تحليل البيانات الحقيقية:');
+        console.log('- إجمالي المبيعات:', totalSales);
+        console.log('- إجمالي الطلبات:', totalOrders);
+        console.log('- إجمالي العملاء:', totalCustomers);
+        console.log('- إجمالي المنتجات:', totalProducts);
+        console.log('- المنتجات منخفضة المخزون:', lowStock.length);
+        console.log('- آخر الطلبات:', recent.length);
+        
+      } catch (error) {
+        console.error('خطأ في تحليل البيانات:', error);
+      }
+    };
+    
+    analyzeRealData();
+    
+    // مراقبة تغييرات البيانات
+    const handleStorageChange = () => {
+      analyzeRealData();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
-  // بيانات المبيعات اليومية
-  const dailySalesData = [
-    { day: 'السبت', sales: 1200 },
-    { day: 'الأحد', sales: 1900 },
-    { day: 'الاثنين', sales: 3000 },
-    { day: 'الثلاثاء', sales: 2800 },
-    { day: 'الأربعاء', sales: 1890 },
-    { day: 'الخميس', sales: 2390 },
-    { day: 'الجمعة', sales: 3490 }
-  ];
+  // تحليل المبيعات اليومية الحقيقية
+  const getDailySalesData = () => {
+    try {
+      const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+      const dailySales = {};
+      
+      sales.forEach(sale => {
+        const date = new Date(sale.timestamp);
+        const dayKey = date.toLocaleDateString('ar-SA', { weekday: 'long' });
+        
+        if (!dailySales[dayKey]) {
+          dailySales[dayKey] = 0;
+        }
+        dailySales[dayKey] += sale.total || 0;
+      });
+      
+      const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+      return days.map(day => ({
+        day,
+        sales: dailySales[day] || 0
+      }));
+    } catch (error) {
+      console.error('خطأ في تحليل المبيعات اليومية:', error);
+      return [
+        { day: 'السبت', sales: 0 },
+        { day: 'الأحد', sales: 0 },
+        { day: 'الاثنين', sales: 0 },
+        { day: 'الثلاثاء', sales: 0 },
+        { day: 'الأربعاء', sales: 0 },
+        { day: 'الخميس', sales: 0 },
+        { day: 'الجمعة', sales: 0 }
+      ];
+    }
+  };
 
-  // بيانات توزيع المبيعات
-  const salesDistributionData = [
-    { name: 'أحذية', value: 35, color: '#9333ea' },
-    { name: 'قمصان', value: 25, color: '#6366f1' },
-    { name: 'بناطيل', value: 20, color: '#22c55e' },
-    { name: 'جواكت', value: 20, color: '#f59e0b' }
-  ];
+  const dailySalesData = getDailySalesData();
+
+  // تحليل توزيع المبيعات الحقيقي
+  const getSalesDistributionData = () => {
+    try {
+      const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+      const categorySales = {};
+      
+      sales.forEach(sale => {
+        if (sale.items) {
+          sale.items.forEach(item => {
+            if (!categorySales[item.category]) {
+              categorySales[item.category] = 0;
+            }
+            categorySales[item.category] += item.price * item.quantity;
+          });
+        }
+      });
+      
+      const totalSales = Object.values(categorySales).reduce((sum, value) => sum + value, 0);
+      const colors = ['#9333ea', '#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
+      
+      return Object.entries(categorySales).map(([name, value], index) => ({
+        name,
+        value: totalSales > 0 ? Math.round((value / totalSales) * 100) : 0,
+        color: colors[index % colors.length]
+      }));
+    } catch (error) {
+      console.error('خطأ في تحليل توزيع المبيعات:', error);
+      return [
+        { name: 'أحذية', value: 0, color: '#9333ea' },
+        { name: 'قمصان', value: 0, color: '#6366f1' },
+        { name: 'بناطيل', value: 0, color: '#22c55e' },
+        { name: 'جواكت', value: 0, color: '#f59e0b' }
+      ];
+    }
+  };
+
+  const salesDistributionData = getSalesDistributionData();
 
   // بيانات الإيرادات
   const revenueData = [

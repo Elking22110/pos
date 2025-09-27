@@ -138,21 +138,12 @@ export class DataValidator {
     }
   }
 
-  // تنظيف البيانات القديمة
+  // تنظيف البيانات القديمة - معطل لحماية البيانات
   static cleanupOldData() {
     try {
-      // حذف المبيعات القديمة (أكثر من 30 يوم)
-      const sales = JSON.parse(localStorage.getItem('sales') || '[]');
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const recentSales = sales.filter(sale => {
-        const saleDate = new Date(sale.date);
-        return saleDate > thirtyDaysAgo;
-      });
-      
-      localStorage.setItem('sales', JSON.stringify(recentSales));
-      return true;
+      // تم تعطيل هذه الوظيفة لحماية البيانات من الحذف التلقائي
+      console.log('⚠️ تم تعطيل تنظيف البيانات القديمة لحماية البيانات');
+      return false;
     } catch (error) {
       console.error('خطأ في تنظيف البيانات القديمة:', error);
       return false;

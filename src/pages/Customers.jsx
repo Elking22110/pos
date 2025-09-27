@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -17,68 +17,7 @@ import {
 } from 'lucide-react';
 
 const Customers = () => {
-  const [customers, setCustomers] = useState([
-    { 
-      id: 1, 
-      name: 'أحمد محمد', 
-      phone: '+966501234567', 
-      email: 'ahmed@example.com', 
-      totalSpent: 2500, 
-      orders: 8, 
-      lastVisit: '2024-01-15',
-      joinDate: '2023-06-15',
-      status: 'نشط',
-      address: 'الرياض، المملكة العربية السعودية'
-    },
-    { 
-      id: 2, 
-      name: 'فاطمة علي', 
-      phone: '+966502345678', 
-      email: 'fatima@example.com', 
-      totalSpent: 1800, 
-      orders: 5, 
-      lastVisit: '2024-01-14',
-      joinDate: '2023-08-20',
-      status: 'نشط',
-      address: 'جدة، المملكة العربية السعودية'
-    },
-    { 
-      id: 3, 
-      name: 'محمد حسن', 
-      phone: '+966503456789', 
-      email: 'mohammed@example.com', 
-      totalSpent: 3200, 
-      orders: 12, 
-      lastVisit: '2024-01-13',
-      joinDate: '2023-05-10',
-      status: 'VIP',
-      address: 'الدمام، المملكة العربية السعودية'
-    },
-    { 
-      id: 4, 
-      name: 'سارة أحمد', 
-      phone: '+966504567890', 
-      email: 'sara@example.com', 
-      totalSpent: 950, 
-      orders: 3, 
-      lastVisit: '2024-01-12',
-      joinDate: '2023-12-01',
-      status: 'جديد',
-      address: 'الرياض، المملكة العربية السعودية'
-    },
-    { 
-      id: 5, 
-      name: 'علي محمود', 
-      phone: '+966505678901', 
-      email: 'ali@example.com', 
-      totalSpent: 4500, 
-      orders: 15, 
-      lastVisit: '2024-01-11',
-      joinDate: '2023-03-15',
-      status: 'VIP',
-      address: 'مكة المكرمة، المملكة العربية السعودية'
-    }
-  ]);
+  const [customers, setCustomers] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('الكل');
@@ -92,6 +31,92 @@ const Customers = () => {
   });
 
   const statuses = ['الكل', 'نشط', 'VIP', 'جديد', 'غير نشط'];
+
+  // تحليل البيانات الحقيقية من المبيعات
+  useEffect(() => {
+    const analyzeCustomersFromSales = () => {
+      try {
+        const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        console.log('تحليل العملاء من المبيعات:', sales.length, 'مبيعات');
+        
+        const customerMap = new Map();
+        
+        sales.forEach(sale => {
+          if (sale.customer && sale.customer.name) {
+            const customerName = sale.customer.name;
+            const customerPhone = sale.customer.phone || 'غير محدد';
+            const customerEmail = sale.customer.email || 'غير محدد';
+            const customerAddress = sale.customer.address || 'غير محدد';
+            
+            if (!customerMap.has(customerName)) {
+              customerMap.set(customerName, {
+                id: customerMap.size + 1,
+                name: customerName,
+                phone: customerPhone,
+                email: customerEmail,
+                address: customerAddress,
+                totalSpent: 0,
+                orders: 0,
+                lastVisit: sale.timestamp,
+                joinDate: sale.timestamp,
+                status: 'نشط'
+              });
+            }
+            
+            const customer = customerMap.get(customerName);
+            customer.totalSpent += sale.total || 0;
+            customer.orders += 1;
+            
+            // تحديث آخر زيارة
+            if (new Date(sale.timestamp) > new Date(customer.lastVisit)) {
+              customer.lastVisit = sale.timestamp;
+            }
+            
+            // تحديث تاريخ الانضمام (أول عملية)
+            if (new Date(sale.timestamp) < new Date(customer.joinDate)) {
+              customer.joinDate = sale.timestamp;
+            }
+          }
+        });
+        
+        const customersList = Array.from(customerMap.values());
+        
+        // تحديد حالة العميل بناءً على إجمالي المشتريات
+        customersList.forEach(customer => {
+          if (customer.totalSpent >= 5000) {
+            customer.status = 'VIP';
+          } else if (customer.totalSpent >= 2000) {
+            customer.status = 'نشط';
+          } else if (customer.orders === 1) {
+            customer.status = 'جديد';
+          } else {
+            customer.status = 'نشط';
+          }
+        });
+        
+        setCustomers(customersList);
+        console.log('تم تحليل العملاء:', customersList.length, 'عميل');
+        console.log('تفاصيل العملاء:', customersList);
+        
+      } catch (error) {
+        console.error('خطأ في تحليل العملاء:', error);
+        setCustomers([]);
+      }
+    };
+    
+    analyzeCustomersFromSales();
+    
+    // مراقبة تغييرات المبيعات
+    const handleStorageChange = () => {
+      analyzeCustomersFromSales();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
