@@ -23,8 +23,8 @@ const ProtectedRoute = ({ children, requiredPermission = null, requiredRole = nu
     return <LoginForm />;
   }
 
-  // التحقق من الصلاحيات المطلوبة
-  if (requiredPermission && !user.permissions.includes(requiredPermission)) {
+  // التحقق من الصلاحيات المطلوبة (استثناء للمدير العام)
+  if (requiredPermission && user.role !== 'admin' && !user.permissions.includes(requiredPermission)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="glass-card hover-lift animate-fadeInUp p-8 max-w-md mx-4 text-center">
@@ -44,8 +44,8 @@ const ProtectedRoute = ({ children, requiredPermission = null, requiredRole = nu
     );
   }
 
-  // التحقق من الدور المطلوب
-  if (requiredRole && user.role !== requiredRole) {
+  // التحقق من الدور المطلوب (استثناء للمدير العام)
+  if (requiredRole && user.role !== 'admin' && user.role !== requiredRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="glass-card hover-lift animate-fadeInUp p-8 max-w-md mx-4 text-center">

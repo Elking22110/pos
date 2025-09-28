@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
         email: userEmail,
         role: userRole,
         permissions: userRole === 'admin' 
-          ? ['read', 'write', 'delete', 'admin'] 
+          ? ['read', 'write', 'delete', 'admin', 'pos_access', 'manage_products', 'view_reports', 'customer_access', 'manage_shifts'] 
           : userRole === 'manager'
           ? ['read', 'write', 'delete', 'manage_products', 'view_reports', 'manage_shifts']
           : ['pos_access', 'customer_access', 'manage_shifts'],

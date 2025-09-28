@@ -51,8 +51,8 @@ const Reports = () => {
   const { user, hasPermission } = useAuth();
   const { notifySuccess, notifyError } = useNotifications();
 
-  // فحص الصلاحيات
-  if (!hasPermission('view_reports')) {
+  // فحص الصلاحيات (استثناء للمدير العام)
+  if (user?.role !== 'admin' && !hasPermission('view_reports')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
         <div className="glass-card p-8 text-center max-w-md mx-4">

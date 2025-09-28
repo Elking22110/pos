@@ -30,6 +30,9 @@ const Sidebar = () => {
     { path: "/shifts", icon: Clock, label: "الورديات", shortcut: "Ctrl+7", permission: "manage_shifts" },
     { path: "/settings", icon: Settings, label: "الإعدادات", shortcut: "Ctrl+6", role: "admin" }
   ].filter(item => {
+    // المدير العام يرى جميع الأقسام
+    if (hasRole('admin')) return true;
+    
     if (item.permission && !hasPermission(item.permission)) return false;
     if (item.role && !hasRole(item.role)) return false;
     return true;
