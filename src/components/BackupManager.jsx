@@ -74,7 +74,12 @@ const BackupManager = () => {
 
       setIsLoading(true);
       await backupManager.restoreBackup(backupId);
-      notifySuccess('تم استعادة النسخة الاحتياطية', 'تم استعادة البيانات بنجاح');
+      notifySuccess('تم استعادة النسخة الاحتياطية', 'تم استعادة البيانات بنجاح. سيتم إعادة تحميل الصفحة لتطبيق التغييرات.');
+      
+      // إعادة تحميل الصفحة بعد 2 ثانية لتطبيق جميع التغييرات
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('خطأ في استعادة النسخة احتياطية:', error);
       notifyError('خطأ في استعادة النسخة الاحتياطية', 'حدث خطأ أثناء استعادة النسخة الاحتياطية');
@@ -102,7 +107,12 @@ const BackupManager = () => {
 
       await backupManager.importBackup(file);
       await loadData();
-      notifySuccess('تم استيراد النسخة الاحتياطية', 'تم استيراد البيانات بنجاح');
+      notifySuccess('تم استيراد النسخة الاحتياطية', 'تم استيراد البيانات بنجاح. سيتم إعادة تحميل الصفحة لتطبيق التغييرات.');
+      
+      // إعادة تحميل الصفحة بعد 2 ثانية لتطبيق جميع التغييرات
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('خطأ في استيراد النسخة احتياطية:', error);
       notifyError('خطأ في استيراد النسخة الاحتياطية', 'حدث خطأ أثناء استيراد النسخة الاحتياطية');

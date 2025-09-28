@@ -278,10 +278,17 @@ class DatabaseManager {
         id: `backup_${Date.now()}`,
         type,
         date: new Date().toISOString(),
-        data: {}
+        data: {
+          metadata: {
+            backupDate: new Date().toISOString(),
+            version: '1.0',
+            system: 'POS System',
+            type: type
+          }
+        }
       };
 
-      // نسخ جميع الجداول
+      // نسخ جميع الجداول من IndexedDB
       const stores = ['products', 'categories', 'customers', 'sales', 'shifts', 'returns', 'users', 'settings'];
       
       for (const store of stores) {
@@ -293,9 +300,24 @@ class DatabaseManager {
         }
       }
 
+      // نسخ بيانات localStorage
+      backupData.data.localStorage = {
+        storeInfo: JSON.parse(localStorage.getItem('storeInfo') || '{}'),
+        posSettings: JSON.parse(localStorage.getItem('pos-settings') || '{}'),
+        productCategories: JSON.parse(localStorage.getItem('productCategories') || '[]'),
+        products: JSON.parse(localStorage.getItem('products') || '[]'),
+        sales: JSON.parse(localStorage.getItem('sales') || '[]'),
+        customers: JSON.parse(localStorage.getItem('customers') || '[]'),
+        shifts: JSON.parse(localStorage.getItem('shifts') || '[]'),
+        users: JSON.parse(localStorage.getItem('users') || '[]'),
+        notifications: JSON.parse(localStorage.getItem('notifications') || '[]'),
+        systemSettings: JSON.parse(localStorage.getItem('system-settings') || '{}')
+      };
+
       // حفظ النسخة الاحتياطية
       await this.add('backups', backupData);
       
+      console.log('تم إنشاء نسخة احتياطية شاملة:', backupData.id);
       return backupData;
     } catch (error) {
       console.error('خطأ في إنشاء النسخة الاحتياطية:', error);
@@ -354,7 +376,15 @@ class DatabaseManager {
 
   // تصدير البيانات
   async exportData() {
-    const exportData = {};
+    const exportData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+        system: 'POS System'
+      }
+    };
+    
+    // تصدير بيانات IndexedDB
     const stores = ['products', 'categories', 'customers', 'sales', 'shifts', 'returns', 'users', 'settings'];
     
     for (const store of stores) {
@@ -366,7 +396,91 @@ class DatabaseManager {
       }
     }
 
+    // تصدير بيانات localStorage
+    exportData.localStorage = {
+      storeInfo: JSON.parse(localStorage.getItem('storeInfo') || '{}'),
+      posSettings: JSON.parse(localStorage.getItem('pos-settings') || '{}'),
+      productCategories: JSON.parse(localStorage.getItem('productCategories') || '[]'),
+      products: JSON.parse(localStorage.getItem('products') || '[]'),
+      sales: JSON.parse(localStorage.getItem('sales') || '[]'),
+      customers: JSON.parse(localStorage.getItem('customers') || '[]'),
+      shifts: JSON.parse(localStorage.getItem('shifts') || '[]'),
+      users: JSON.parse(localStorage.getItem('users') || '[]'),
+      notifications: JSON.parse(localStorage.getItem('notifications') || '[]'),
+      systemSettings: JSON.parse(localStorage.getItem('system-settings') || '{}')
+    };
+
     return exportData;
+  }
+
+  // تصدير الإعدادات فقط
+  async exportSettings() {
+    const settingsData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+        system: 'POS System',
+        type: 'settings_only'
+      },
+      settings: await this.getAll('settings'),
+      localStorage: {
+        storeInfo: JSON.parse(localStorage.getItem('storeInfo') || '{}'),
+        posSettings: JSON.parse(localStorage.getItem('pos-settings') || '{}'),
+        systemSettings: JSON.parse(localStorage.getItem('system-settings') || '{}')
+      }
+    };
+
+    return settingsData;
+  }
+
+  // استيراد الإعدادات فقط
+  async importSettings(data) {
+    try {
+      // التأكد من تهيئة قاعدة البيانات
+      if (!this.db) {
+        await this.init();
+      }
+
+      // استيراد إعدادات IndexedDB
+      if (data.settings && data.settings.length > 0) {
+        const transaction = this.db.transaction(['settings'], 'readwrite');
+        const store = transaction.objectStore('settings');
+        
+        // مسح الإعدادات الموجودة
+        await new Promise((resolve, reject) => {
+          const clearRequest = store.clear();
+          clearRequest.onsuccess = () => resolve();
+          clearRequest.onerror = () => reject(clearRequest.error);
+        });
+        
+        // إضافة الإعدادات الجديدة
+        for (const setting of data.settings) {
+          await new Promise((resolve, reject) => {
+            const request = store.put(setting);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        }
+      }
+
+      // استيراد إعدادات localStorage
+      if (data.localStorage) {
+        for (const [key, value] of Object.entries(data.localStorage)) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+            console.log(`تم استيراد إعداد ${key} إلى localStorage`);
+          } catch (error) {
+            console.warn(`خطأ في استيراد إعداد ${key}:`, error);
+          }
+        }
+      }
+
+      console.log('تم استيراد الإعدادات بنجاح');
+      return true;
+    } catch (error) {
+      console.error('خطأ في استيراد الإعدادات:', error);
+      throw error;
+    }
   }
 
   // استيراد البيانات
@@ -380,7 +494,13 @@ class DatabaseManager {
       // التأكد من وجود جميع الجداول المطلوبة
       await this.ensureStoresExist();
 
+      // استيراد بيانات IndexedDB
       for (const [storeName, items] of Object.entries(data)) {
+        // تخطي metadata و localStorage
+        if (storeName === 'metadata' || storeName === 'localStorage') {
+          continue;
+        }
+
         // التحقق من وجود الجدول قبل محاولة الوصول إليه
         if (!this.db.objectStoreNames.contains(storeName)) {
           console.warn(`الجدول ${storeName} غير موجود، سيتم تخطيه`);
@@ -407,6 +527,21 @@ class DatabaseManager {
           }
         }
       }
+
+      // استيراد بيانات localStorage
+      if (data.localStorage) {
+        console.log('استيراد بيانات localStorage...');
+        for (const [key, value] of Object.entries(data.localStorage)) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+            console.log(`تم استيراد ${key} إلى localStorage`);
+          } catch (error) {
+            console.warn(`خطأ في استيراد ${key} إلى localStorage:`, error);
+          }
+        }
+      }
+
+      console.log('تم استيراد جميع البيانات بنجاح');
       return true;
     } catch (error) {
       console.error('خطأ في استيراد البيانات:', error);
