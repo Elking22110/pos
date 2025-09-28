@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getCurrentDate } from '../utils/dateUtils.js';
 import soundManager from '../utils/soundManager.js';
 
 const AuthContext = createContext();
@@ -99,7 +100,7 @@ export const AuthProvider = ({ children }) => {
           : userRole === 'manager'
           ? ['read', 'write', 'delete', 'manage_products', 'view_reports', 'manage_shifts']
           : ['pos_access', 'customer_access', 'manage_shifts'],
-        lastLogin: new Date().toISOString(),
+        lastLogin: getCurrentDate(),
         avatar: `https://ui-avatars.com/api/?name=${username}&background=random&color=ffffff`
       };
 
@@ -116,7 +117,7 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         const updatedUsers = savedUsers.map(u => 
           u.id === user.id 
-            ? { ...u, lastLogin: new Date().toISOString() }
+            ? { ...u, lastLogin: getCurrentDate() }
             : u
         );
         localStorage.setItem('users', JSON.stringify(updatedUsers));

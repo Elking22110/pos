@@ -1,4 +1,5 @@
 // نظام التحقق من البيانات والتخزين
+import { getCurrentDate } from './dateUtils.js';
 export class DataValidator {
   // التحقق من صحة البيانات المحفوظة
   static validateStoredData() {
@@ -99,7 +100,7 @@ export class DataValidator {
   static createBackup() {
     try {
       const backup = {
-        timestamp: new Date().toISOString(),
+        timestamp: getCurrentDate(),
         products: JSON.parse(localStorage.getItem('products') || '[]'),
         categories: JSON.parse(localStorage.getItem('productCategories') || '[]'),
         sales: JSON.parse(localStorage.getItem('sales') || '[]'),

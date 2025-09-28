@@ -2,7 +2,7 @@
 import { useNotifications } from '../components/NotificationSystem';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
-import { formatDate, formatTimeOnly, formatDateTime } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatDateTime, formatDateOnly, getCurrentDate } from '../utils/dateUtils.js';
 import { useAuth } from '../components/AuthProvider';
 import { 
   Calendar,
@@ -516,7 +516,7 @@ const Reports = () => {
           const returns = JSON.parse(localStorage.getItem('returns') || '[]');
           const returnData = {
             ...invoice,
-            returnDate: new Date().toISOString(),
+            returnDate: getCurrentDate(),
             returnReason: 'مرتجعات العميل',
             originalInvoiceId: invoiceId,
             returnAmount: invoice.total,
@@ -608,7 +608,7 @@ const Reports = () => {
             returnedQuantity: item.quantity, // يمكن تعديل هذا لاحقاً
             itemPrice: item.price,
             returnAmount: item.price * item.quantity,
-            returnDate: new Date().toISOString(),
+            returnDate: getCurrentDate(),
             returnReason: 'مرتجعات جزئية للعميل',
             originalInvoiceId: invoiceId,
             customerName: invoice.customer.name,
@@ -856,7 +856,7 @@ const Reports = () => {
           
           <div class="footer">
             <div>شكراً لزيارتكم</div>
-            <div>${new Date().toLocaleString('ar-SA')}</div>
+            <div>${formatDateTime(new Date().toISOString())}</div>
             <div style="margin-top: 10px; font-size: 9px;">
               هذه فاتورة مطبوعة من نظام إدارة المبيعات
             </div>
@@ -1052,7 +1052,7 @@ const Reports = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `report_${selectedReport}_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `report_${selectedReport}_${selectedPeriod}_${getCurrentDate().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1071,7 +1071,7 @@ const Reports = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `report_${reportType}_${item.id || item.name || 'item'}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `report_${reportType}_${item.id || item.name || 'item'}_${getCurrentDate().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1142,7 +1142,7 @@ const Reports = () => {
         <body>
           <div class="header">
             <div class="title">${reportTitle}</div>
-            <div class="subtitle">${periodTitle} - ${new Date().toLocaleDateString('ar-SA')}</div>
+            <div class="subtitle">${periodTitle} - ${formatDateOnly(getCurrentDate())}</div>
           </div>
           
           <table>
@@ -1159,7 +1159,7 @@ const Reports = () => {
           </table>
           
           <div class="footer">
-            <p>تم إنشاء هذا التقرير في ${new Date().toLocaleString('ar-SA')}</p>
+            <p>تم إنشاء هذا التقرير في ${formatDateTime(getCurrentDate())}</p>
             <p>نظام إدارة متجر الأزياء الرجالية</p>
           </div>
         </body>
@@ -1610,7 +1610,7 @@ const Reports = () => {
                   (() => {
                     // تجميع الفواتير حسب التاريخ
                     const groupedInvoices = getCurrentData().reduce((groups, invoice) => {
-                      const date = new Date(invoice.date).toLocaleDateString('ar-SA');
+                      const date = formatDateOnly(invoice.date);
                       if (!groups[date]) {
                         groups[date] = [];
                       }

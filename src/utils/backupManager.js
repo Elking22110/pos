@@ -1,5 +1,6 @@
 // نظام النسخ الاحتياطية التلقائية
 import databaseManager from './database.js';
+import { getCurrentDate } from './dateUtils.js';
 import encryptionManager from './encryption.js';
 
 class BackupManager {
@@ -53,7 +54,7 @@ class BackupManager {
         autoBackupEnabled: this.autoBackupEnabled,
         backupFrequency: this.backupFrequency,
         maxBackups: this.maxBackups,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: getCurrentDate()
       };
 
       await databaseManager.update('settings', settings);
@@ -209,7 +210,7 @@ class BackupManager {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `backup_${backupId}_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `backup_${backupId}_${getCurrentDate().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -224,6 +225,53 @@ class BackupManager {
     }
   }
 
+  // تصدير الإعدادات فقط
+  async exportSettings() {
+    try {
+      const settingsData = await databaseManager.exportSettings();
+      
+      // تحويل البيانات إلى JSON
+      const jsonData = JSON.stringify(settingsData, null, 2);
+      
+      // إنشاء ملف للتحميل
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // تحميل الملف
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `settings_${getCurrentDate().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('تم تصدير الإعدادات بنجاح');
+      return true;
+      
+    } catch (error) {
+      console.error('خطأ في تصدير الإعدادات:', error);
+      throw error;
+    }
+  }
+
+  // استيراد الإعدادات
+  async importSettings(file) {
+    try {
+      const text = await file.text();
+      const settingsData = JSON.parse(text);
+      
+      await databaseManager.importSettings(settingsData);
+      
+      console.log('تم استيراد الإعدادات بنجاح');
+      return true;
+      
+    } catch (error) {
+      console.error('خطأ في استيراد الإعدادات:', error);
+      throw error;
+    }
+  }
+
   // استيراد نسخة احتياطية
   async importBackup(file) {
     try {
@@ -234,7 +282,7 @@ class BackupManager {
       const backup = {
         id: `imported_${Date.now()}`,
         type: 'imported',
-        date: new Date().toISOString(),
+        date: getCurrentDate(),
         data: backupData
       };
 

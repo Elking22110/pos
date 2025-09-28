@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار النظام</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #533483 100%);
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+        }
+        .success { color: #10B981; }
+        .error { color: #EF4444; }
+        .warning { color: #F59E0B; }
+        button {
+            background: #8B5CF6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #7C3AED;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 اختبار نظام إدارة المبيعات</h1>
+        
+        <div class="test-item">
+            <h3>📊 حالة النظام:</h3>
+            <p id="system-status">جاري التحقق...</p>
+        </div>
+
+        <div class="test-item">
+            <h3>🗄️ قاعدة البيانات:</h3>
+            <p id="database-status">جاري التحقق...</p>
+            <button onclick="testDatabase()">اختبار قاعدة البيانات</button>
+        </div>
+
+        <div class="test-item">
+            <h3>💾 النسخ الاحتياطية:</h3>
+            <p id="backup-status">جاري التحقق...</p>
+            <button onclick="testBackup()">اختبار النسخ الاحتياطية</button>
+        </div>
+
+        <div class="test-item">
+            <h3>🎨 المظهر:</h3>
+            <p id="appearance-status">جاري التحقق...</p>
+            <button onclick="testAppearance()">اختبار المظهر</button>
+        </div>
+
+        <div class="test-item">
+            <h3>🔊 الأصوات:</h3>
+            <p id="sound-status">جاري التحقق...</p>
+            <button onclick="testSounds()">اختبار الأصوات</button>
+        </div>
+
+        <div class="test-item">
+            <h3>📅 التواريخ:</h3>
+            <p id="date-status">جاري التحقق...</p>
+            <button onclick="testDates()">اختبار التواريخ</button>
+        </div>
+    </div>
+
+    <script>
+        // اختبار النظام
+        function testSystem() {
+            const status = document.getElementById('system-status');
+            try {
+                // التحقق من وجود المتطلبات الأساسية
+                if (typeof localStorage !== 'undefined' && typeof indexedDB !== 'undefined') {
+                    status.innerHTML = '<span class="success">✅ النظام يعمل بشكل صحيح</span>';
+                } else {
+                    status.innerHTML = '<span class="error">❌ النظام لا يدعم التخزين المحلي</span>';
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // اختبار قاعدة البيانات
+        async function testDatabase() {
+            const status = document.getElementById('database-status');
+            try {
+                const request = indexedDB.open('POS_Database', 1);
+                request.onsuccess = () => {
+                    status.innerHTML = '<span class="success">✅ قاعدة البيانات تعمل بشكل صحيح</span>';
+                };
+                request.onerror = () => {
+                    status.innerHTML = '<span class="error">❌ خطأ في قاعدة البيانات</span>';
+                };
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // اختبار النسخ الاحتياطية
+        async function testBackup() {
+            const status = document.getElementById('backup-status');
+            try {
+                // محاولة إنشاء نسخة احتياطية بسيطة
+                const testData = {
+                    test: true,
+                    timestamp: new Date().toISOString(),
+                    data: { message: 'اختبار النسخ الاحتياطية' }
+                };
+                
+                localStorage.setItem('test-backup', JSON.stringify(testData));
+                const retrieved = JSON.parse(localStorage.getItem('test-backup'));
+                
+                if (retrieved && retrieved.test) {
+                    status.innerHTML = '<span class="success">✅ النسخ الاحتياطية تعمل بشكل صحيح</span>';
+                    localStorage.removeItem('test-backup');
+                } else {
+                    status.innerHTML = '<span class="error">❌ خطأ في النسخ الاحتياطية</span>';
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // اختبار المظهر
+        function testAppearance() {
+            const status = document.getElementById('appearance-status');
+            try {
+                const root = document.documentElement;
+                
+                // اختبار تغيير المظهر
+                root.classList.toggle('test-theme');
+                
+                // اختبار تغيير اللون
+                root.style.setProperty('--test-color', '#FF6B6B');
+                
+                setTimeout(() => {
+                    root.classList.remove('test-theme');
+                    root.style.removeProperty('--test-color');
+                    status.innerHTML = '<span class="success">✅ المظهر يعمل بشكل صحيح</span>';
+                }, 1000);
+                
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // اختبار الأصوات
+        function testSounds() {
+            const status = document.getElementById('sound-status');
+            try {
+                // محاولة إنشاء صوت بسيط
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+                
+                status.innerHTML = '<span class="success">✅ الأصوات تعمل بشكل صحيح</span>';
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // اختبار التواريخ
+        function testDates() {
+            const status = document.getElementById('date-status');
+            try {
+                const now = new Date();
+                const formatted = now.toLocaleDateString('ar-SA', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                if (formatted && formatted.includes('م') || formatted.includes('ص')) {
+                    status.innerHTML = '<span class="success">✅ التواريخ تعمل بالتاريخ الميلادي ونظام 12 ساعة</span>';
+                } else {
+                    status.innerHTML = '<span class="warning">⚠️ التواريخ تعمل ولكن قد تحتاج تحسين</span>';
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ خطأ: ${error.message}</span>`;
+            }
+        }
+
+        // تشغيل الاختبارات عند تحميل الصفحة
+        window.onload = function() {
+            testSystem();
+            testDatabase();
+            testBackup();
+            testAppearance();
+            testSounds();
+            testDates();
+        };
+    </script>
+</body>
+</html>

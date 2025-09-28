@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User,
   Shield,
@@ -29,13 +29,40 @@ import {
 } from 'lucide-react';
 import DataManager from '../components/DataManager';
 import soundManager from '../utils/soundManager.js';
-import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, getCurrentDate } from '../utils/dateUtils.js';
 import StoreSettings from '../components/StoreSettings';
 import ShiftManager from '../components/ShiftManager';
 import BackupManager from '../components/BackupManager';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('store');
+
+  // تطبيق الإعدادات عند تحميل الصفحة
+  useEffect(() => {
+    // تطبيق المظهر المحفوظ
+    if (settings.theme) {
+      applyTheme(settings.theme);
+    }
+    
+    // تطبيق اللون الأساسي المحفوظ
+    if (settings.primaryColor) {
+      applyPrimaryColor(settings.primaryColor);
+    }
+    
+    // تطبيق طي القائمة الجانبية المحفوظ
+    if (settings.sidebarCollapsed !== undefined) {
+      applySidebarCollapse(settings.sidebarCollapsed);
+    }
+    
+    // تطبيق إعدادات الأصوات المحفوظة
+    if (settings.soundsEnabled !== undefined) {
+      soundManager.setEnabled(settings.soundsEnabled);
+    }
+    
+    if (settings.soundVolume !== undefined) {
+      soundManager.setVolume(settings.soundVolume);
+    }
+  }, []);
   const [users, setUsers] = useState(() => {
     const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
     return savedUsers.length > 0 ? savedUsers : [
@@ -47,8 +74,8 @@ const Settings = () => {
         role: 'admin',
         status: 'active',
         password: btoa('admin123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       },
       {
         id: 2,
@@ -58,8 +85,8 @@ const Settings = () => {
         role: 'manager',
         status: 'active',
         password: btoa('sara123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       },
       {
         id: 3,
@@ -69,8 +96,8 @@ const Settings = () => {
         role: 'cashier',
         status: 'active',
         password: btoa('mohamed123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       },
       {
         id: 4,
@@ -80,8 +107,8 @@ const Settings = () => {
         role: 'cashier',
         status: 'active',
         password: btoa('nora123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       },
       {
         id: 5,
@@ -91,8 +118,8 @@ const Settings = () => {
         role: 'manager',
         status: 'active',
         password: btoa('khaled123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       }
     ];
   });
@@ -183,6 +210,191 @@ const Settings = () => {
       ...prev,
       [key]: value
     }));
+    
+    // تطبيق التغييرات فورياً
+    applySettingChange(key, value);
+  };
+
+  // تطبيق التغييرات فورياً على النظام
+  const applySettingChange = (key, value) => {
+    try {
+      // تطبيق تغيير المظهر
+      if (key === 'theme') {
+        applyTheme(value);
+      }
+      
+      // تطبيق تغيير اللون الأساسي
+      if (key === 'primaryColor') {
+        applyPrimaryColor(value);
+      }
+      
+      // تطبيق تغيير طي القائمة الجانبية
+      if (key === 'sidebarCollapsed') {
+        applySidebarCollapse(value);
+      }
+      
+      // تطبيق تغيير الأصوات
+      if (key === 'soundsEnabled') {
+        soundManager.setEnabled(value);
+      }
+      
+      if (key === 'soundVolume') {
+        soundManager.setVolume(value);
+      }
+      
+      // حفظ الإعدادات في localStorage فوراً
+      const updatedSettings = { ...settings, [key]: value };
+      localStorage.setItem('system-settings', JSON.stringify(updatedSettings));
+      
+      // إضافة الإعدادات إلى document.documentElement للاستمرارية
+      document.documentElement.setAttribute(`data-${key}`, value);
+      
+      console.log(`تم تطبيق الإعداد: ${key} = ${value}`);
+    } catch (error) {
+      console.error('خطأ في تطبيق الإعداد:', error);
+    }
+  };
+
+  // تطبيق المظهر
+  const applyTheme = (theme) => {
+    const root = document.documentElement;
+    
+    if (theme === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      // تطبيق متغيرات CSS للوضع الفاتح
+      root.style.setProperty('--bg-primary', '#ffffff');
+      root.style.setProperty('--bg-secondary', '#f8fafc');
+      root.style.setProperty('--text-primary', '#1f2937');
+      root.style.setProperty('--text-secondary', '#6b7280');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+      // تطبيق متغيرات CSS للوضع الداكن
+      root.style.setProperty('--bg-primary', '#0f172a');
+      root.style.setProperty('--bg-secondary', '#1e293b');
+      root.style.setProperty('--text-primary', '#f1f5f9');
+      root.style.setProperty('--text-secondary', '#94a3b8');
+    }
+  };
+
+  // تطبيق اللون الأساسي
+  const applyPrimaryColor = (color) => {
+    const root = document.documentElement;
+    
+    // تطبيق متغيرات CSS الجذرية
+    root.style.setProperty('--primary-color', color);
+    root.style.setProperty('--primary-500', color);
+    root.style.setProperty('--primary-600', adjustColor(color, -20));
+    root.style.setProperty('--primary-400', adjustColor(color, 20));
+    root.style.setProperty('--primary-300', adjustColor(color, 40));
+    root.style.setProperty('--primary-200', adjustColor(color, 60));
+    root.style.setProperty('--primary-100', adjustColor(color, 80));
+    
+    // تطبيق اللون على العناصر المختلفة
+    const primaryElements = document.querySelectorAll('.bg-purple-500, .text-purple-500, .border-purple-500, .bg-purple-600, .text-purple-600, .border-purple-600');
+    primaryElements.forEach(element => {
+      if (element.classList.contains('bg-purple-500') || element.classList.contains('bg-purple-600')) {
+        element.style.setProperty('background-color', color);
+      }
+      if (element.classList.contains('text-purple-500') || element.classList.contains('text-purple-600')) {
+        element.style.setProperty('color', color);
+      }
+      if (element.classList.contains('border-purple-500') || element.classList.contains('border-purple-600')) {
+        element.style.setProperty('border-color', color);
+      }
+    });
+    
+    // تطبيق اللون على الأزرار
+    const buttons = document.querySelectorAll('.btn-primary, .bg-purple-500, .bg-purple-600');
+    buttons.forEach(button => {
+      button.style.setProperty('background-color', color);
+      button.style.setProperty('border-color', color);
+    });
+    
+    // تطبيق اللون على الروابط
+    const links = document.querySelectorAll('.text-purple-500, .text-purple-600');
+    links.forEach(link => {
+      link.style.setProperty('color', color);
+    });
+  };
+
+  // دالة لتعديل اللون (تفتيح أو تظليل)
+  const adjustColor = (color, amount) => {
+    const num = parseInt(color.replace("#", ""), 16);
+    const amt = Math.round(2.55 * amount);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+  };
+
+  // تطبيق طي القائمة الجانبية
+  const applySidebarCollapse = (collapsed) => {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+      if (collapsed) {
+        sidebar.classList.add('collapsed');
+      } else {
+        sidebar.classList.remove('collapsed');
+      }
+    }
+  };
+
+  // إعادة تعيين المظهر للألوان الأساسية
+  const resetAppearanceToDefault = () => {
+    try {
+      // إعادة تعيين الإعدادات للألوان الأساسية
+      const defaultSettings = {
+        theme: 'dark',
+        primaryColor: '#8B5CF6',
+        sidebarCollapsed: false
+      };
+
+      // تطبيق الإعدادات الافتراضية
+      setSettings(prev => ({
+        ...prev,
+        ...defaultSettings
+      }));
+
+      // تطبيق التغييرات فورياً
+      applyTheme(defaultSettings.theme);
+      applyPrimaryColor(defaultSettings.primaryColor);
+      applySidebarCollapse(defaultSettings.sidebarCollapsed);
+
+      // حفظ الإعدادات في localStorage
+      const updatedSettings = { ...settings, ...defaultSettings };
+      localStorage.setItem('system-settings', JSON.stringify(updatedSettings));
+
+      // إضافة الإعدادات إلى document.documentElement
+      document.documentElement.setAttribute('data-theme', defaultSettings.theme);
+      document.documentElement.setAttribute('data-primaryColor', defaultSettings.primaryColor);
+      document.documentElement.setAttribute('data-sidebarCollapsed', defaultSettings.sidebarCollapsed);
+
+      // إزالة جميع الألوان المخصصة
+      const root = document.documentElement;
+      root.style.removeProperty('--primary-color');
+      root.style.removeProperty('--primary-500');
+      
+      // إعادة تعيين العناصر للألوان الأساسية
+      const primaryElements = document.querySelectorAll('[style*="background-color"], [style*="color"], [style*="border-color"]');
+      primaryElements.forEach(element => {
+        element.style.removeProperty('background-color');
+        element.style.removeProperty('color');
+        element.style.removeProperty('border-color');
+      });
+
+      soundManager.play('success');
+      alert('تم إعادة تعيين المظهر للألوان الأساسية بنجاح!');
+      
+      console.log('تم إعادة تعيين المظهر للألوان الأساسية');
+    } catch (error) {
+      console.error('خطأ في إعادة تعيين المظهر:', error);
+      soundManager.play('error');
+      alert('حدث خطأ في إعادة تعيين المظهر!');
+    }
   };
 
   // دوال إدارة المستخدمين
@@ -237,7 +449,7 @@ const Settings = () => {
       id: Date.now(),
       ...newUser,
       status: 'active',
-      createdAt: new Date().toISOString(),
+      createdAt: getCurrentDate(),
       lastLogin: null,
       // تشفير كلمة المرور (بسيط)
       password: btoa(newUser.password)
@@ -407,7 +619,7 @@ const Settings = () => {
           role: 'admin',
           status: 'active',
           password: btoa('admin123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -418,7 +630,7 @@ const Settings = () => {
           role: 'manager',
           status: 'active',
           password: btoa('sara123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -429,7 +641,7 @@ const Settings = () => {
           role: 'cashier',
           status: 'active',
           password: btoa('mohamed123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -440,7 +652,7 @@ const Settings = () => {
           role: 'cashier',
           status: 'active',
           password: btoa('nora123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -451,7 +663,7 @@ const Settings = () => {
           role: 'manager',
           status: 'active',
           password: btoa('khaled123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         }
       ];
@@ -475,8 +687,8 @@ const Settings = () => {
         role: 'admin',
         status: 'active',
         password: btoa('admin123'),
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
+        createdAt: getCurrentDate(),
+        lastLogin: getCurrentDate()
       };
       setUsers([adminUser, ...users]);
       localStorage.setItem('users', JSON.stringify([adminUser, ...users]));
@@ -499,7 +711,7 @@ const Settings = () => {
           role: 'admin',
           status: 'active',
           password: btoa('admin123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -510,7 +722,7 @@ const Settings = () => {
           role: 'manager',
           status: 'active',
           password: btoa('sara123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -521,7 +733,7 @@ const Settings = () => {
           role: 'cashier',
           status: 'active',
           password: btoa('mohamed123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -532,7 +744,7 @@ const Settings = () => {
           role: 'cashier',
           status: 'active',
           password: btoa('nora123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         },
         {
@@ -543,7 +755,7 @@ const Settings = () => {
           role: 'manager',
           status: 'active',
           password: btoa('khaled123'),
-          createdAt: new Date().toISOString(),
+          createdAt: getCurrentDate(),
           lastLogin: new Date().toISOString()
         }
       ];
@@ -1130,7 +1342,7 @@ const Settings = () => {
       
       <div>
         <label className="block text-sm font-medium text-purple-200 mb-2">اللون الأساسي</label>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 mb-4">
           {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'].map(color => (
             <button
               key={color}
@@ -1142,6 +1354,18 @@ const Settings = () => {
             />
           ))}
         </div>
+        
+        {/* زر إعادة تعيين المظهر */}
+        <button
+          onClick={() => { 
+            soundManager.play('click'); 
+            resetAppearanceToDefault(); 
+          }}
+          className="w-full p-3 bg-gray-600 bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg border border-gray-500 border-opacity-30 flex items-center justify-center space-x-2 transition-all duration-200"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span className="text-sm font-medium">إعادة تعيين المظهر للألوان الأساسية</span>
+        </button>
       </div>
       
       <div className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-lg">

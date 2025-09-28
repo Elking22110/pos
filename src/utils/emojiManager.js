@@ -2,6 +2,7 @@
  * نظام إدارة الإيموجي للمنتجات - Elking Store
  * يحدد الإيموجي المناسب لكل نوع منتج
  */
+import { getCurrentDate } from './dateUtils.js';
 
 class EmojiManager {
   constructor() {
@@ -287,7 +288,7 @@ class EmojiManager {
 
   // الحصول على إيموجي حسب الموسم
   getSeasonalEmoji() {
-    const month = new Date().getMonth();
+    const month = new Date(getCurrentDate()).getMonth();
     
     if (month >= 2 && month <= 4) { // ربيع
       return '🌸';

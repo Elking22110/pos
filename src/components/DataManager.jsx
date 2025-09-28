@@ -3,7 +3,7 @@ import { useAuth } from './AuthProvider';
 import databaseManager from '../utils/database';
 import { design } from '../utils/design';
 import { perf } from '../utils/performance';
-import { formatDate } from '../utils/dateUtils.js';
+import { formatDate, getCurrentDate } from '../utils/dateUtils.js';
 import { 
   Download, 
   Upload, 
@@ -114,7 +114,7 @@ const DataManager = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `pos_system_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `pos_system_backup_${getCurrentDate().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -124,7 +124,7 @@ const DataManager = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `pos_system_backup_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `pos_system_backup_${getCurrentDate().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -162,15 +162,63 @@ const DataManager = () => {
       }
       
       await databaseManager.importData(data);
-      setMessage({ type: 'success', text: 'تم استيراد البيانات بنجاح. سيتم إعادة تحميل الصفحة لتطبيق التغييرات.' });
+      setMessage({ type: 'success', text: 'تم استيراد البيانات بنجاح' });
       loadStats();
-      
-      // إعادة تحميل الصفحة بعد 2 ثانية لتطبيق جميع التغييرات
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
     } catch (error) {
       setMessage({ type: 'error', text: 'فشل في استيراد البيانات' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportSettings = async () => {
+    if (!hasPermission('read')) {
+      setMessage({ type: 'error', text: 'ليس لديك صلاحية التصدير' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const settingsData = await databaseManager.exportSettings();
+      const dataString = JSON.stringify(settingsData, null, 2);
+      
+      const blob = new Blob([dataString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pos_system_settings_${getCurrentDate().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setMessage({ type: 'success', text: 'تم تصدير الإعدادات بنجاح' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'فشل في تصدير الإعدادات' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportSettings = async (event) => {
+    if (!hasPermission('write')) {
+      setMessage({ type: 'error', text: 'ليس لديك صلاحية الاستيراد' });
+      return;
+    }
+
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const text = await file.text();
+      const settingsData = JSON.parse(text);
+      
+      await databaseManager.importSettings(settingsData);
+      setMessage({ type: 'success', text: 'تم استيراد الإعدادات بنجاح' });
+      loadStats();
+    } catch (error) {
+      setMessage({ type: 'error', text: 'فشل في استيراد الإعدادات' });
     } finally {
       setLoading(false);
     }
@@ -244,63 +292,6 @@ const DataManager = () => {
       loadBackups();
     } catch (error) {
       setMessage({ type: 'error', text: 'فشل في تنظيف البيانات' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExportSettings = async () => {
-    if (!hasPermission('read')) {
-      setMessage({ type: 'error', text: 'ليس لديك صلاحية تصدير الإعدادات' });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const settingsData = await databaseManager.exportSettings();
-      const dataString = JSON.stringify(settingsData, null, 2);
-      
-      const blob = new Blob([dataString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `pos_system_settings_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setMessage({ type: 'success', text: 'تم تصدير الإعدادات بنجاح' });
-    } catch (error) {
-      setMessage({ type: 'error', text: 'فشل في تصدير الإعدادات' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImportSettings = async (event) => {
-    if (!hasPermission('write')) {
-      setMessage({ type: 'error', text: 'ليس لديك صلاحية استيراد الإعدادات' });
-      return;
-    }
-
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setLoading(true);
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      await databaseManager.importSettings(data);
-      setMessage({ type: 'success', text: 'تم استيراد الإعدادات بنجاح. سيتم إعادة تحميل الصفحة لتطبيق التغييرات.' });
-      
-      // إعادة تحميل الصفحة بعد 2 ثانية لتطبيق جميع التغييرات
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'فشل في استيراد الإعدادات' });
     } finally {
       setLoading(false);
     }
@@ -388,26 +379,6 @@ const DataManager = () => {
         >
           <BarChart3 className="h-5 w-5 inline mr-2" />
           الإحصائيات
-        </button>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setActiveTab('settings');
-          }}
-          className={`px-6 py-3 rounded-lg font-semibold transition-colors min-h-[50px] cursor-pointer ${
-            activeTab === 'settings' 
-              ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30' 
-              : 'text-white hover:bg-white hover:bg-opacity-10'
-          }`}
-          style={{ 
-            pointerEvents: 'auto',
-            zIndex: 10,
-            position: 'relative'
-          }}
-        >
-          <Settings className="h-5 w-5 inline mr-2" />
-          الإعدادات
         </button>
         <button
           onClick={(e) => {
@@ -563,27 +534,75 @@ const DataManager = () => {
 
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">الاستيراد</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json,.csv"
+                  onChange={handleImport}
+                  disabled={loading}
+                  className="hidden"
+                  id="import-file"
+                />
+                <label
+                  htmlFor="import-file"
+                  className="btn-primary p-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px]"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10,
+                    position: 'relative'
+                  }}
+                >
+                  <Upload className="h-6 w-6 mr-3" />
+                  <span className="font-semibold text-lg">استيراد جميع البيانات</span>
+                </label>
+              </div>
+              
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportSettings}
+                  disabled={loading}
+                  className="hidden"
+                  id="import-settings-file"
+                />
+                <label
+                  htmlFor="import-settings-file"
+                  className="btn-secondary p-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px]"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10,
+                    position: 'relative'
+                  }}
+                >
+                  <Settings className="h-6 w-6 mr-3" />
+                  <span className="font-semibold text-lg">استيراد الإعدادات فقط</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4">تصدير الإعدادات</h3>
             <div className="relative">
-              <input
-                type="file"
-                accept=".json,.csv"
-                onChange={handleImport}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleExportSettings();
+                }}
                 disabled={loading}
-                className="hidden"
-                id="import-file"
-              />
-              <label
-                htmlFor="import-file"
-                className="btn-primary p-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px]"
+                className="btn-secondary p-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px] w-full"
                 style={{ 
                   pointerEvents: 'auto',
                   zIndex: 10,
                   position: 'relative'
                 }}
               >
-                <Upload className="h-6 w-6 mr-3" />
-                <span className="font-semibold text-lg">استيراد ملف</span>
-              </label>
+                <Settings className="h-6 w-6 mr-3" />
+                <span className="font-semibold text-lg">تصدير الإعدادات فقط</span>
+              </button>
             </div>
           </div>
         </div>
@@ -675,93 +694,6 @@ const DataManager = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Settings Tab */}
-      {activeTab === 'settings' && (
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-white">إدارة الإعدادات</h3>
-          
-          <div className="bg-blue-500 bg-opacity-20 border border-blue-500 border-opacity-30 rounded-lg p-4">
-            <div className="flex items-center mb-2">
-              <Settings className="h-5 w-5 text-blue-300 mr-2" />
-              <span className="text-blue-300 font-semibold">تصدير واستيراد الإعدادات</span>
-            </div>
-            <p className="text-blue-200 text-sm">
-              يمكنك تصدير واستيراد إعدادات النظام فقط (بدون البيانات) لنقل الإعدادات بين الأنظمة.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* تصدير الإعدادات */}
-            <div className="glass-card p-6">
-              <div className="flex items-center mb-4">
-                <Download className="h-6 w-6 text-green-400 mr-3" />
-                <h4 className="text-white font-semibold">تصدير الإعدادات</h4>
-              </div>
-              <p className="text-purple-200 text-sm mb-4">
-                تصدير جميع إعدادات النظام إلى ملف JSON
-              </p>
-              <button
-                onClick={handleExportSettings}
-                disabled={loading}
-                className="w-full bg-green-500 bg-opacity-20 hover:bg-green-500 hover:bg-opacity-30 text-green-300 px-6 py-3 rounded-lg font-semibold transition-all duration-200 min-h-[50px] cursor-pointer flex items-center justify-center"
-                style={{ 
-                  pointerEvents: 'auto',
-                  zIndex: 10,
-                  position: 'relative'
-                }}
-              >
-                {loading ? (
-                  <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-                ) : (
-                  <Download className="h-5 w-5 mr-2" />
-                )}
-                تصدير الإعدادات
-              </button>
-            </div>
-
-            {/* استيراد الإعدادات */}
-            <div className="glass-card p-6">
-              <div className="flex items-center mb-4">
-                <Upload className="h-6 w-6 text-blue-400 mr-3" />
-                <h4 className="text-white font-semibold">استيراد الإعدادات</h4>
-              </div>
-              <p className="text-purple-200 text-sm mb-4">
-                استيراد إعدادات النظام من ملف JSON
-              </p>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportSettings}
-                className="hidden"
-                id="import-settings"
-              />
-              <label
-                htmlFor="import-settings"
-                className="w-full bg-blue-500 bg-opacity-20 hover:bg-blue-500 hover:bg-opacity-30 text-blue-300 px-6 py-3 rounded-lg font-semibold transition-all duration-200 min-h-[50px] cursor-pointer flex items-center justify-center"
-                style={{ 
-                  pointerEvents: 'auto',
-                  zIndex: 10,
-                  position: 'relative'
-                }}
-              >
-                <Upload className="h-5 w-5 mr-2" />
-                استيراد الإعدادات
-              </label>
-            </div>
-          </div>
-
-          <div className="bg-yellow-500 bg-opacity-20 border border-yellow-500 border-opacity-30 rounded-lg p-4">
-            <div className="flex items-center mb-2">
-              <AlertCircle className="h-5 w-5 text-yellow-300 mr-2" />
-              <span className="text-yellow-300 font-semibold">ملاحظة مهمة</span>
-            </div>
-            <p className="text-yellow-200 text-sm">
-              عند استيراد الإعدادات، سيتم إعادة تحميل الصفحة تلقائياً لتطبيق جميع التغييرات.
-            </p>
           </div>
         </div>
       )}

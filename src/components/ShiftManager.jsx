@@ -15,7 +15,7 @@ import {
   Trash2
 } from 'lucide-react';
 import soundManager from '../utils/soundManager.js';
-import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatDateOnly, getCurrentDate } from '../utils/dateUtils.js';
 
 const ShiftManager = () => {
   const [shifts, setShifts] = useState([]);
@@ -74,7 +74,7 @@ const ShiftManager = () => {
       id: shiftId,
       userId: JSON.parse(localStorage.getItem('user') || '{}').id || 'current_user',
       userName: JSON.parse(localStorage.getItem('user') || '{}').username || 'مستخدم',
-      startTime: now.toISOString(),
+      startTime: getCurrentDate(),
       endTime: null,
       status: 'active',
       sales: [],
@@ -526,11 +526,11 @@ const ShiftManager = () => {
             <div class="shift-info">
               <div class="info-item">
                 <strong>📅 تاريخ البداية:</strong><br>
-                ${new Date(shift.startTime).toLocaleString('ar-SA')}
+                ${formatDateTime(shift.startTime)}
               </div>
               <div class="info-item">
                 <strong>🕐 تاريخ النهاية:</strong><br>
-                ${new Date(shift.endTime).toLocaleString('ar-SA')}
+                ${formatDateTime(shift.endTime)}
               </div>
               <div class="info-item">
                 <strong>👤 الكاشير:</strong><br>
@@ -604,7 +604,7 @@ const ShiftManager = () => {
                             sale.downPayment && sale.downPayment.enabled ? '⏳ عربون' : '✅ مكتمل'}
                         </span>
                       </td>
-                      <td>${new Date(sale.timestamp).toLocaleString('ar-SA')}</td>
+                      <td>${formatDateTime(sale.timestamp)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -716,7 +716,7 @@ const ShiftManager = () => {
           </div>
           
           <div class="footer">
-            <p><strong>📅 تم إنشاء التقرير في:</strong> ${new Date().toLocaleString('ar-SA')}</p>
+            <p><strong>📅 تم إنشاء التقرير في:</strong> ${formatDateTime(getCurrentDate())}</p>
             <p><strong>🏪 Elking Store</strong> - نظام إدارة متطور</p>
             <p style="margin-top: 10px; font-size: 12px; opacity: 0.7;">جميع المبالغ بالجنيه المصري (EGP)</p>
           </div>
@@ -821,8 +821,8 @@ const ShiftManager = () => {
     const csvContent = [
       ['تاريخ البداية', 'تاريخ النهاية', 'المستخدم', 'إجمالي المبيعات', 'عدد الطلبات', 'مبلغ الصندوق', 'الحالة'],
       ...shifts.map(shift => [
-        new Date(shift.startTime).toLocaleString('ar-SA'),
-        shift.endTime ? new Date(shift.endTime).toLocaleString('ar-SA') : 'لم تنته',
+        formatDateTime(shift.startTime),
+        shift.endTime ? formatDateTime(shift.endTime) : 'لم تنته',
         shift.userName,
         shift.totalSales.toFixed(2),
         shift.totalOrders,
@@ -835,7 +835,7 @@ const ShiftManager = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `shifts_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `shifts_report_${getCurrentDate().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -888,7 +888,7 @@ const ShiftManager = () => {
                 <span className="text-sm text-gray-300">وقت البداية</span>
               </div>
               <p className="text-white font-semibold">
-                {new Date(currentShift.startTime).toLocaleString('ar-SA')}
+                {formatDateTime(currentShift.startTime)}
               </p>
             </div>
 
@@ -997,7 +997,7 @@ const ShiftManager = () => {
                   .map((shift) => (
                   <tr key={shift.id} className="border-b border-gray-700 hover:bg-white hover:bg-opacity-5">
                     <td className="py-3 px-4 text-sm text-white">
-                      {new Date(shift.startTime).toLocaleDateString('ar-SA')}
+                      {formatDateOnly(shift.startTime)}
                     </td>
                     <td className="py-3 px-4 text-sm text-white">{shift.userName}</td>
                     <td className="py-3 px-4 text-sm text-green-400 font-semibold">
@@ -1028,7 +1028,7 @@ const ShiftManager = () => {
                         <button
                           onClick={() => {
                             soundManager.play('warning');
-                            if (window.confirm(`هل أنت متأكد من حذف وردية ${shift.userName} بتاريخ ${new Date(shift.startTime).toLocaleDateString('ar-SA')}؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+                            if (window.confirm(`هل أنت متأكد من حذف وردية ${shift.userName} بتاريخ ${formatDateOnly(shift.startTime)}؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
                               deleteShift(shift.id);
                             }
                           }}

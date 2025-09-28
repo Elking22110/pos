@@ -1,4 +1,6 @@
 // نظام الطابعة الحرارية المحسن
+import { formatDateTime, getCurrentDate } from './dateUtils.js';
+
 class ThermalPrinterManager {
   constructor() {
     this.port = null;
@@ -351,7 +353,7 @@ class ThermalPrinterManager {
       await this.sendCommand('\x1B\x45\x00'); // إلغاء النص العريض
       await this.sendCommand('Elking Store\n');
       await this.printLine('=', 32);
-      await this.sendCommand('الوقت: ' + new Date().toLocaleString('ar-SA') + '\n');
+      await this.sendCommand('الوقت: ' + formatDateTime(getCurrentDate()) + '\n');
       await this.sendCommand('الحالة: متصلة بنجاح\n');
       await this.printLine('-', 32);
       await this.sendCommand('تم اختبار الطابعة بنجاح\n');

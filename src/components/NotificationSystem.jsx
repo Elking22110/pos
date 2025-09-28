@@ -11,6 +11,7 @@ import {
   DollarSign,
   AlertTriangle
 } from 'lucide-react';
+import { formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
 
 // أنواع الإشعارات
 export const NOTIFICATION_TYPES = {
@@ -359,7 +360,7 @@ export const NotificationProvider = ({ children }) => {
       operation: OPERATION_TYPES.USER_LOGIN,
       title: 'تم تسجيل الدخول',
       message: `مرحباً ${username}`,
-      details: `الدور: ${role} | الوقت: ${new Date().toLocaleString('ar-SA')}`
+      details: `الدور: ${role} | الوقت: ${formatDateTime(getCurrentDate())}`
     });
   }, [addNotification]);
 
@@ -379,7 +380,7 @@ export const NotificationProvider = ({ children }) => {
       operation: OPERATION_TYPES.DATA_BACKUP,
       title: 'تم إنشاء نسخة احتياطية',
       message: 'تم حفظ جميع البيانات بنجاح',
-      details: `تم إنشاء النسخة الاحتياطية في ${new Date().toLocaleString('ar-SA')}`
+      details: `تم إنشاء النسخة الاحتياطية في ${formatDateTime(getCurrentDate())}`
     });
   }, [addNotification]);
 
@@ -389,7 +390,7 @@ export const NotificationProvider = ({ children }) => {
       operation: OPERATION_TYPES.DATA_RESTORE,
       title: '📥 تم استعادة البيانات',
       message: 'تم استعادة البيانات بنجاح',
-      details: `تم استعادة البيانات في ${new Date().toLocaleString('ar-SA')}`,
+      details: `تم استعادة البيانات في ${formatDateTime(getCurrentDate())}`,
       duration: 5000
     });
   }, [addNotification]);

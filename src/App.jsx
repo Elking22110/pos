@@ -17,6 +17,7 @@ import { observerManager } from "./utils/observerManager"; // إضافة مدي�
 import { DataValidator, StorageMonitor } from "./utils/dataValidation"; // إضافة نظام التحقق
 import DataLoader from "./components/DataLoader"; // إضافة محمل البيانات
 import databaseManager from "./utils/database"; // إضافة مدير قاعدة البيانات
+import { getCurrentDate, cleanExistingData } from './utils/dateUtils.js';
 
 function App() {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ function App() {
       try {
         await databaseManager.init();
         await databaseManager.ensureStoresExist();
+        
+        // تنظيف البيانات الموجودة من التواريخ الهجرية
+        cleanExistingData();
         console.log('✅ تم تهيئة قاعدة البيانات بنجاح');
       } catch (error) {
         console.error('❌ خطأ في تهيئة قاعدة البيانات:', error);
@@ -45,8 +49,8 @@ function App() {
           role: 'admin',
           status: 'active',
           password: btoa('admin123'),
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          createdAt: getCurrentDate(),
+          lastLogin: getCurrentDate()
         },
         {
           id: 2,
@@ -56,8 +60,8 @@ function App() {
           role: 'manager',
           status: 'active',
           password: btoa('sara123'),
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          createdAt: getCurrentDate(),
+          lastLogin: getCurrentDate()
         },
         {
           id: 3,
@@ -67,8 +71,8 @@ function App() {
           role: 'cashier',
           status: 'active',
           password: btoa('mohamed123'),
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          createdAt: getCurrentDate(),
+          lastLogin: getCurrentDate()
         },
         {
           id: 4,
@@ -78,8 +82,8 @@ function App() {
           role: 'cashier',
           status: 'active',
           password: btoa('nora123'),
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          createdAt: getCurrentDate(),
+          lastLogin: getCurrentDate()
         },
         {
           id: 5,
@@ -89,8 +93,8 @@ function App() {
           role: 'manager',
           status: 'active',
           password: btoa('khaled123'),
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          createdAt: getCurrentDate(),
+          lastLogin: getCurrentDate()
         }
       ];
       

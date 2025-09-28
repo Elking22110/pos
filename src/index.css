@@ -5,6 +5,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* متغيرات CSS للمظهر */
+:root {
+  --primary-color: #8B5CF6;
+  --primary-500: #8B5CF6;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+}
+
+/* الوضع الفاتح */
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+}
+
+/* الوضع الداكن */
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+}
+
+/* القائمة الجانبية المطوية */
+.sidebar.collapsed {
+  width: 60px !important;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed .sidebar-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-icon {
+  margin: 0 auto;
+}
+
 /* إزالة الأسهم من حقول الأرقام */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

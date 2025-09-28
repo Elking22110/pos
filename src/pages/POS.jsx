@@ -29,7 +29,7 @@ import backupManager from '../utils/backupManager.js';
 import thermalPrinterManager from '../utils/thermalPrinter.js';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
-import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
 
 const POS = () => {
   const { notifySuccess, notifyError } = useNotifications();
@@ -334,8 +334,8 @@ const POS = () => {
       paymentMethod: downPayment.enabled 
         ? `${paymentMethod === 'cash' ? 'نقدي' : paymentMethod === 'wallet' ? 'محفظة إلكترونية' : 'انستا باي'} (دفع جزئي)`
         : paymentMethod === 'cash' ? 'نقدي' : paymentMethod === 'wallet' ? 'محفظة إلكترونية' : 'انستا باي',
-      timestamp: new Date().toLocaleString('ar-SA'),
-      date: new Date().toISOString(),
+      timestamp: formatDateTime(getCurrentDate()),
+      date: getCurrentDate(),
       downPayment: downPayment.enabled ? {
         enabled: true,
         amount: getDownPaymentAmount(),
@@ -455,7 +455,7 @@ const POS = () => {
         storeAddress: storeInfo.storeAddress,
         storePhone: storeInfo.storePhone,
         storeTaxNumber: storeInfo.storeTaxNumber,
-        date: new Date().toLocaleString('ar-SA'),
+        date: formatDateTime(getCurrentDate()),
         invoiceId: invoiceId || `INV-${Date.now()}`, // استخدام رقم الفاتورة الممرر أو إنشاء جديد
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
@@ -666,7 +666,7 @@ Elking Store - نظام إدارة متطور
                 <p>📞 للاستفسارات: ${receiptData.storePhone || 'غير محدد'}</p>
                 <p>📧 البريد الإلكتروني: info@elkingstore.com</p>
                 <p style="margin-top: 10px; font-size: 10px; color: #999;">
-                  تم إنشاء هذه الفاتورة في: ${new Date().toLocaleString('ar-SA')}
+                  تم إنشاء هذه الفاتورة في: ${formatDateTime(getCurrentDate())}
                 </p>
               </div>
             </div>

@@ -1,4 +1,6 @@
 // نظام حماية من XSS و CSRF
+import { getCurrentDate } from './dateUtils.js';
+
 export class SecurityManager {
   constructor() {
     this.csrfToken = this.generateCSRFToken();
@@ -154,7 +156,7 @@ export class SecurityManager {
   // تسجيل محاولات الأمان المشبوهة
   logSecurityEvent(event, details = {}) {
     const securityLog = {
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentDate(),
       event,
       details,
       userAgent: navigator.userAgent,

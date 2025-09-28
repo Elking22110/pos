@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from './AuthProvider';
+import { formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
 import { 
   User, 
   Mail, 
@@ -198,7 +199,7 @@ const UserProfile = () => {
             <label className="block text-sm font-medium text-purple-200 mb-2">آخر تسجيل دخول</label>
             <div className="input-modern flex items-center">
               <Clock className="h-5 w-5 text-purple-300 mr-3" />
-              <span className="text-white">{new Date(user.lastLogin).toLocaleString('ar-SA')}</span>
+              <span className="text-white">{formatDateTime(user.lastLogin)}</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,6 @@
 // نظام قاعدة البيانات المحلية باستخدام IndexedDB
+import { getCurrentDate } from './dateUtils.js';
+
 class DatabaseManager {
   constructor() {
     this.db = null;
@@ -277,15 +279,8 @@ class DatabaseManager {
       const backupData = {
         id: `backup_${Date.now()}`,
         type,
-        date: new Date().toISOString(),
-        data: {
-          metadata: {
-            backupDate: new Date().toISOString(),
-            version: '1.0',
-            system: 'POS System',
-            type: type
-          }
-        }
+        date: getCurrentDate(),
+        data: {}
       };
 
       // نسخ جميع الجداول من IndexedDB
@@ -333,8 +328,13 @@ class DatabaseManager {
         throw new Error('النسخة الاحتياطية غير موجودة');
       }
 
-      // استعادة البيانات
+      // استعادة بيانات IndexedDB
       for (const [storeName, data] of Object.entries(backup.data)) {
+        // تخطي localStorage
+        if (storeName === 'localStorage') {
+          continue;
+        }
+
         if (data && data.length > 0) {
           const transaction = this.db.transaction([storeName], 'readwrite');
           const store = transaction.objectStore(storeName);
@@ -357,6 +357,20 @@ class DatabaseManager {
         }
       }
 
+      // استعادة بيانات localStorage
+      if (backup.data.localStorage) {
+        console.log('استعادة بيانات localStorage...');
+        for (const [key, value] of Object.entries(backup.data.localStorage)) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+            console.log(`تم استعادة ${key} إلى localStorage`);
+          } catch (error) {
+            console.warn(`خطأ في استعادة ${key} إلى localStorage:`, error);
+          }
+        }
+      }
+
+      console.log('تم استعادة النسخة الاحتياطية بنجاح:', backupId);
       return true;
     } catch (error) {
       console.error('خطأ في استعادة النسخة الاحتياطية:', error);
@@ -378,7 +392,7 @@ class DatabaseManager {
   async exportData() {
     const exportData = {
       metadata: {
-        exportDate: new Date().toISOString(),
+        exportDate: getCurrentDate(),
         version: '1.0',
         system: 'POS System'
       }
@@ -417,7 +431,7 @@ class DatabaseManager {
   async exportSettings() {
     const settingsData = {
       metadata: {
-        exportDate: new Date().toISOString(),
+        exportDate: getCurrentDate(),
         version: '1.0',
         system: 'POS System',
         type: 'settings_only'

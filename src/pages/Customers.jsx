@@ -16,7 +16,7 @@ import {
   Upload
 } from 'lucide-react';
 import soundManager from '../utils/soundManager.js';
-import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, getCurrentDate } from '../utils/dateUtils.js';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -135,8 +135,8 @@ const Customers = () => {
         ...newCustomer,
         totalSpent: 0,
         orders: 0,
-        lastVisit: new Date().toISOString().split('T')[0],
-        joinDate: new Date().toISOString().split('T')[0],
+        lastVisit: getCurrentDate().split('T')[0],
+        joinDate: getCurrentDate().split('T')[0],
         status: 'جديد'
       };
       setCustomers([...customers, customer]);

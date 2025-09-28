@@ -1,4 +1,38 @@
 // مساعد التواريخ - تحويل إلى النظام الميلادي مع 12 ساعة
+const monthNames = {
+  'January': 'يناير', 'February': 'فبراير', 'March': 'مارس', 'April': 'أبريل',
+  'May': 'مايو', 'June': 'يونيو', 'July': 'يوليو', 'August': 'أغسطس',
+  'September': 'سبتمبر', 'October': 'أكتوبر', 'November': 'نوفمبر', 'December': 'ديسمبر'
+};
+
+const dayNames = {
+  'Sunday': 'الأحد', 'Monday': 'الاثنين', 'Tuesday': 'الثلاثاء', 'Wednesday': 'الأربعاء',
+  'Thursday': 'الخميس', 'Friday': 'الجمعة', 'Saturday': 'السبت'
+};
+
+// دالة ترجمة التواريخ والأوقات للعربية
+const translateToArabic = (text) => {
+  let translated = text;
+  
+  // ترجمة أسماء الشهور
+  Object.keys(monthNames).forEach(english => {
+    const arabic = monthNames[english];
+    translated = translated.replace(new RegExp(english, 'g'), arabic);
+  });
+  
+  // ترجمة أسماء الأيام
+  Object.keys(dayNames).forEach(english => {
+    const arabic = dayNames[english];
+    translated = translated.replace(new RegExp(english, 'g'), arabic);
+  });
+  
+  // ترجمة AM/PM
+  translated = translated.replace(/AM/g, 'ص');
+  translated = translated.replace(/PM/g, 'م');
+  
+  return translated;
+};
+
 export const formatDate = (dateString) => {
   if (!dateString) return '';
   
@@ -20,7 +54,8 @@ export const formatDate = (dateString) => {
       hour12: true // استخدام نظام 12 ساعة
     };
     
-    return date.toLocaleDateString('ar-SA', options);
+    const formatted = date.toLocaleDateString('en-US', options);
+    return translateToArabic(formatted);
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ:', error);
     return dateString;
@@ -44,7 +79,8 @@ export const formatDateOnly = (dateString) => {
       day: 'numeric'
     };
     
-    return date.toLocaleDateString('ar-SA', options);
+    const formatted = date.toLocaleDateString('en-US', options);
+    return translateToArabic(formatted);
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ:', error);
     return dateString;
@@ -68,7 +104,8 @@ export const formatTimeOnly = (dateString) => {
       hour12: true
     };
     
-    return date.toLocaleTimeString('ar-SA', options);
+    const formatted = date.toLocaleTimeString('en-US', options);
+    return translateToArabic(formatted);
   } catch (error) {
     console.warn('خطأ في تنسيق الوقت:', error);
     return dateString;
@@ -95,7 +132,8 @@ export const formatDateTime = (dateString) => {
       hour12: true
     };
     
-    return date.toLocaleDateString('ar-SA', options);
+    const formatted = date.toLocaleDateString('en-US', options);
+    return translateToArabic(formatted);
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ والوقت:', error);
     return dateString;
@@ -119,7 +157,8 @@ export const formatShortDate = (dateString) => {
       day: '2-digit'
     };
     
-    return date.toLocaleDateString('ar-SA', options);
+    const formatted = date.toLocaleDateString('en-US', options);
+    return translateToArabic(formatted);
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ القصير:', error);
     return dateString;
@@ -212,6 +251,57 @@ export const getEndOfDay = (dateString) => {
   }
 };
 
+// تنسيق اسم اليوم
+export const formatWeekday = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+    
+    const formatted = date.toLocaleDateString('en-US', { weekday: 'long' });
+    return translateToArabic(formatted);
+  } catch (error) {
+    return dateString;
+  }
+};
+
+// دالة لتنظيف البيانات الموجودة من التواريخ الهجرية
+export const cleanExistingData = () => {
+  try {
+    // تنظيف بيانات المبيعات
+    const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+    const cleanedSales = sales.map(sale => ({
+      ...sale,
+      date: getCurrentDate(),
+      timestamp: formatDateTime(getCurrentDate())
+    }));
+    localStorage.setItem('sales', JSON.stringify(cleanedSales));
+
+    // تنظيف بيانات الورديات
+    const shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
+    const cleanedShifts = shifts.map(shift => ({
+      ...shift,
+      startTime: getCurrentDate(),
+      endTime: shift.endTime ? getCurrentDate() : null
+    }));
+    localStorage.setItem('shifts', JSON.stringify(cleanedShifts));
+
+    // تنظيف بيانات النسخ الاحتياطية
+    const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+    const cleanedBackups = backups.map(backup => ({
+      ...backup,
+      date: getCurrentDate()
+    }));
+    localStorage.setItem('backups', JSON.stringify(cleanedBackups));
+
+    console.log('تم تنظيف البيانات من التواريخ الهجرية');
+  } catch (error) {
+    console.error('خطأ في تنظيف البيانات:', error);
+  }
+};
+
 export default {
   formatDate,
   formatDateOnly,
@@ -224,6 +314,8 @@ export default {
   compareDates,
   addDays,
   getStartOfDay,
-  getEndOfDay
+  getEndOfDay,
+  formatWeekday,
+  cleanExistingData
 };
 

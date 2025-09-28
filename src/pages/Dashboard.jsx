@@ -13,7 +13,7 @@ import {
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
-import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatWeekday, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
 
 // مكون Tooltip مخصص لتوزيع المبيعات
 const CustomTooltip = ({ active, payload, label }) => {
@@ -73,11 +73,7 @@ const Dashboard = () => {
             id: sale.id,
             customer: sale.customer?.name || 'عميل غير محدد',
             amount: sale.total || 0,
-            time: new Date(sale.date || sale.timestamp).toLocaleTimeString('ar-SA', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: true 
-            })
+            time: formatTimeOnly(sale.date || sale.timestamp)
           }));
         
         setStats({
@@ -127,7 +123,7 @@ const Dashboard = () => {
         // استخدام sale.date أو sale.timestamp حسب ما هو متاح
         const saleDate = sale.date || sale.timestamp;
         const date = new Date(saleDate);
-        const dayKey = date.toLocaleDateString('ar-SA', { weekday: 'long' });
+        const dayKey = formatWeekday(sale.date || sale.timestamp);
         
         if (!dailySales[dayKey]) {
           dailySales[dayKey] = 0;
@@ -224,7 +220,7 @@ const Dashboard = () => {
           </div>
           <div className="text-right">
             <div className="text-xs text-purple-300 mb-1 font-medium">آخر تحديث</div>
-            <div className="text-white font-semibold text-xs md:text-sm">{new Date().toLocaleString('ar-SA')}</div>
+            <div className="text-white font-semibold text-xs md:text-sm">{formatDateTime(getCurrentDate())}</div>
           </div>
         </div>
 
@@ -234,7 +230,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي المبيعات</p>
-                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">${stats.totalSales.toLocaleString()}</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">${stats.totalSales.toLocaleString('ar-SA')}</p>
                 <div className="flex items-center text-xs">
                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
                   <span className="text-green-400 font-semibold">+12.5%</span>
@@ -251,7 +247,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي الطلبات</p>
-                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalOrders.toLocaleString()}</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalOrders.toLocaleString('ar-SA')}</p>
                 <div className="flex items-center text-xs">
                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
                   <span className="text-green-400 font-semibold">+8.2%</span>
