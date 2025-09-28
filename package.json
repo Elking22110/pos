@@ -29,6 +29,7 @@
     "url": "https://github.com/your-username/pos-system-modern-ui/issues"
   },
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"

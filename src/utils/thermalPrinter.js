@@ -24,6 +24,10 @@ class ThermalPrinterManager {
       // طلب إذن الوصول للطابعة
       this.port = await navigator.serial.requestPort();
       
+      if (!this.port) {
+        throw new Error('لم يتم اختيار منفذ الطابعة');
+      }
+      
       // فتح الاتصال
       await this.port.open({
         baudRate: this.printerSettings.baudRate,
@@ -42,6 +46,13 @@ class ThermalPrinterManager {
     } catch (error) {
       console.error('خطأ في الاتصال بالطابعة الحرارية:', error);
       this.isConnected = false;
+      
+      // إذا كان الخطأ بسبب عدم اختيار المنفذ، لا نرمي الخطأ
+      if (error.name === 'NotFoundError' && error.message.includes('No port selected')) {
+        console.warn('لم يتم اختيار منفذ الطابعة - سيتم تخطي الطباعة');
+        return false;
+      }
+      
       throw error;
     }
   }
@@ -118,8 +129,24 @@ class ThermalPrinterManager {
   // طباعة إيصال
   async printReceipt(receiptData) {
     try {
+      // التحقق من دعم Web Serial API
+      if (!navigator.serial) {
+        console.warn('Web Serial API غير مدعوم - سيتم تخطي الطباعة');
+        return false;
+      }
+
+      // التحقق من وجود طابعة متصلة
+      const ports = await navigator.serial.getPorts();
+      if (ports.length === 0 && !this.isConnected) {
+        console.warn('لا توجد طابعة متصلة - سيتم تخطي الطباعة');
+        return false;
+      }
+
       if (!this.isConnected) {
-        await this.init();
+        const initResult = await this.init();
+        if (!initResult) {
+          return false; // تم تخطي الطباعة
+        }
       }
 
       // بدء الإيصال
@@ -140,10 +167,16 @@ class ThermalPrinterManager {
 
       // خط فاصل
       await this.printLine('=', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
       // التاريخ والوقت
       await this.sendCommand('\x1B\x61\x00'); // محاذاة يسار
       await this.sendCommand(`التاريخ: ${receiptData.date}\n`);
+      
+      // رقم الفاتورة
+      if (receiptData.invoiceId) {
+        await this.sendCommand(`رقم الفاتورة: ${receiptData.invoiceId}\n`);
+      }
       
       // عنوان المتجر
       if (receiptData.storeAddress) {
@@ -155,61 +188,78 @@ class ThermalPrinterManager {
         await this.sendCommand(`الهاتف: ${receiptData.storePhone}\n`);
       }
 
-      // خط فاصل
+      await this.sendCommand('\n'); // سطر فارغ
       await this.printLine('-', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
       // بيانات العميل
+      await this.sendCommand('بيانات العميل:\n');
       if (receiptData.customerName) {
-        await this.sendCommand(`العميل: ${receiptData.customerName}\n`);
+        await this.sendCommand(`  الاسم: ${receiptData.customerName}\n`);
+      } else {
+        await this.sendCommand('  عميل عام\n');
       }
       if (receiptData.customerPhone) {
-        await this.sendCommand(`الهاتف: ${receiptData.customerPhone}\n`);
+        await this.sendCommand(`  الهاتف: ${receiptData.customerPhone}\n`);
       }
-      if (receiptData.customerName || receiptData.customerPhone) {
-        await this.printLine('-', 32);
-      }
+
+      await this.sendCommand('\n'); // سطر فارغ
+      await this.printLine('-', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
       // المنتجات
       await this.sendCommand('المنتجات:\n');
-      for (const item of receiptData.items) {
-        const name = item.name.substring(0, 20); // تقليل طول الاسم
+      for (let i = 0; i < receiptData.items.length; i++) {
+        const item = receiptData.items[i];
+        const name = item.name.length > 18 ? item.name.substring(0, 18) + '...' : item.name;
         const quantity = item.quantity;
         const price = item.price;
         const total = price * quantity;
         
-        await this.sendCommand(`${name} x${quantity} = ${total} جنيه\n`);
+        await this.sendCommand(`  ${(i + 1).toString().padStart(2, ' ')}. ${name.padEnd(20, ' ')} ${quantity} × ${price.toFixed(2)} = ${total.toFixed(2)} جنيه\n`);
       }
 
-      // خط فاصل
+      await this.sendCommand('\n'); // سطر فارغ
       await this.printLine('-', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
-      // المجموع الفرعي
-      await this.sendCommand(`المجموع الفرعي: ${receiptData.subtotal.toFixed(2)} جنيه\n`);
+      // ملخص الفاتورة
+      await this.sendCommand('ملخص الفاتورة:\n');
+      await this.sendCommand(`  المجموع الفرعي: ${receiptData.subtotal.toFixed(2)} جنيه\n`);
 
       // الخصم
       if (receiptData.discount > 0) {
-        await this.sendCommand(`الخصم: -${receiptData.discount.toFixed(2)} جنيه\n`);
+        await this.sendCommand(`  الخصم: -${receiptData.discount.toFixed(2)} جنيه\n`);
       }
 
       // الضريبة
       if (receiptData.tax > 0) {
-        await this.sendCommand(`الضريبة: ${receiptData.tax.toFixed(2)} جنيه\n`);
+        await this.sendCommand(`  الضريبة: ${receiptData.tax.toFixed(2)} جنيه\n`);
       }
 
+      await this.sendCommand('\n'); // سطر فارغ
+      await this.printLine('=', 32);
+      await this.sendCommand('\n'); // سطر فارغ
+
       // الإجمالي
-      await this.sendCommand(`الإجمالي: ${receiptData.total.toFixed(2)} جنيه\n`);
+      await this.sendCommand(`  الإجمالي: ${receiptData.total.toFixed(2)} جنيه\n`);
 
       // العربون
       if (receiptData.downPayment > 0) {
-        await this.sendCommand(`العربون: ${receiptData.downPayment.toFixed(2)} جنيه\n`);
-        await this.sendCommand(`المبلغ المتبقي: ${receiptData.remaining.toFixed(2)} جنيه\n`);
+        await this.sendCommand(`  العربون: ${receiptData.downPayment.toFixed(2)} جنيه\n`);
+        await this.sendCommand(`  المبلغ المتبقي: ${receiptData.remaining.toFixed(2)} جنيه\n`);
       }
+
+      await this.sendCommand('\n'); // سطر فارغ
+      await this.printLine('-', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
       // طريقة الدفع
       await this.sendCommand(`طريقة الدفع: ${receiptData.paymentMethod}\n`);
 
-      // خط فاصل
-      await this.printLine('-', 32);
+      await this.sendCommand('\n'); // سطر فارغ
+      await this.printLine('=', 32);
+      await this.sendCommand('\n'); // سطر فارغ
 
       // رسالة شكر
       await this.sendCommand('\x1B\x61\x01'); // محاذاة وسط
@@ -225,6 +275,18 @@ class ThermalPrinterManager {
 
     } catch (error) {
       console.error('خطأ في طباعة الإيصال:', error);
+      
+      // إذا كان الخطأ بسبب عدم اختيار المنفذ، لا نرمي الخطأ
+      if (error.name === 'NotFoundError' && error.message.includes('No port selected')) {
+        console.warn('لم يتم اختيار منفذ الطابعة - سيتم تخطي الطباعة');
+        return false;
+      }
+      
+      // إعادة تعيين حالة الاتصال
+      this.isConnected = false;
+      this.port = null;
+      this.writer = null;
+      
       throw error;
     }
   }

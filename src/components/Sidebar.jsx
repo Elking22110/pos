@@ -12,8 +12,10 @@ import {
   TrendingUp,
   Bell,
   User,
-  LogOut
+  LogOut,
+  Clock
 } from "lucide-react";
+import soundManager from '../utils/soundManager.js';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -21,10 +23,11 @@ const Sidebar = () => {
 
   const menuItems = [
     { path: "/", icon: LayoutDashboard, label: "لوحة التحكم", shortcut: "Ctrl+1", permission: null },
-    { path: "/pos", icon: ShoppingCart, label: "نقطة البيع", shortcut: "Ctrl+2", permission: "write" },
-    { path: "/products", icon: Package, label: "المنتجات", shortcut: "Ctrl+3", permission: "write" },
-    { path: "/reports", icon: BarChart3, label: "التقارير", shortcut: "Ctrl+4", permission: "read" },
-    { path: "/customers", icon: Users, label: "العملاء", shortcut: "Ctrl+5", permission: "write" },
+    { path: "/pos", icon: ShoppingCart, label: "نقطة البيع", shortcut: "Ctrl+2", permission: "pos_access" },
+    { path: "/products", icon: Package, label: "المنتجات", shortcut: "Ctrl+3", permission: "manage_products" },
+    { path: "/reports", icon: BarChart3, label: "التقارير", shortcut: "Ctrl+4", permission: "view_reports" },
+    { path: "/customers", icon: Users, label: "العملاء", shortcut: "Ctrl+5", permission: "customer_access" },
+    { path: "/shifts", icon: Clock, label: "الورديات", shortcut: "Ctrl+7", permission: "manage_shifts" },
     { path: "/settings", icon: Settings, label: "الإعدادات", shortcut: "Ctrl+6", role: "admin" }
   ].filter(item => {
     if (item.permission && !hasPermission(item.permission)) return false;
@@ -62,6 +65,7 @@ const Sidebar = () => {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => soundManager.play('click')}
                     className={`menu-item flex items-center justify-between p-4 rounded-xl group relative overflow-hidden ${
                       isActive
                         ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-glow'
@@ -112,6 +116,7 @@ const Sidebar = () => {
           <div className="space-y-2">
             <Link
               to="/profile"
+              onClick={() => soundManager.play('click')}
               className={`flex items-center p-3 rounded-lg ${
                 location.pathname === '/profile'
                   ? 'bg-purple-500 bg-opacity-20 text-purple-300'
@@ -123,7 +128,7 @@ const Sidebar = () => {
             </Link>
             
             <button
-              onClick={logout}
+              onClick={() => { soundManager.play('logout'); logout(); }}
               className="w-full flex items-center p-3 rounded-lg text-gray-200 hover:bg-red-500 hover:bg-opacity-10 hover:text-red-300"
             >
               <LogOut className="h-4 w-4 mr-3" />

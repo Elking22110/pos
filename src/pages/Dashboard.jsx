@@ -11,6 +11,9 @@ import {
   Activity
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import soundManager from '../utils/soundManager.js';
+import emojiManager from '../utils/emojiManager.js';
+import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
 
 // مكون Tooltip مخصص لتوزيع المبيعات
 const CustomTooltip = ({ active, payload, label }) => {
@@ -64,13 +67,13 @@ const Dashboard = () => {
         
         // تحليل آخر الطلبات
         const recent = sales
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp))
           .slice(0, 5)
           .map(sale => ({
             id: sale.id,
             customer: sale.customer?.name || 'عميل غير محدد',
             amount: sale.total || 0,
-            time: new Date(sale.timestamp).toLocaleTimeString('ar-SA', { 
+            time: new Date(sale.date || sale.timestamp).toLocaleTimeString('ar-SA', { 
               hour: '2-digit', 
               minute: '2-digit',
               hour12: true 
@@ -121,7 +124,9 @@ const Dashboard = () => {
       const dailySales = {};
       
       sales.forEach(sale => {
-        const date = new Date(sale.timestamp);
+        // استخدام sale.date أو sale.timestamp حسب ما هو متاح
+        const saleDate = sale.date || sale.timestamp;
+        const date = new Date(saleDate);
         const dayKey = date.toLocaleDateString('ar-SA', { weekday: 'long' });
         
         if (!dailySales[dayKey]) {

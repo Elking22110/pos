@@ -11,6 +11,7 @@ import {
   Shield,
   Key
 } from 'lucide-react';
+import soundManager from '../utils/soundManager.js';
 
 const LoginForm = () => {
   const { login, loading } = useAuth();
@@ -28,6 +29,7 @@ const LoginForm = () => {
     setSuccess('');
 
     if (!formData.username || !formData.password) {
+      soundManager.play('error');
       setError('يرجى ملء جميع الحقول');
       return;
     }
@@ -35,15 +37,18 @@ const LoginForm = () => {
     const result = await login(formData.username, formData.password);
     
     if (result.success) {
+      soundManager.play('login');
       setSuccess('تم تسجيل الدخول بنجاح!');
       // سيتم إعادة التوجيه تلقائياً
     } else {
+      soundManager.play('error');
       setError(result.error || 'فشل في تسجيل الدخول');
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    soundManager.play('click');
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -128,7 +133,7 @@ const LoginForm = () => {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => { soundManager.play('click'); setShowPassword(!showPassword); }}
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-300 hover:text-white transition-colors"
                 disabled={loading}
               >
@@ -140,6 +145,7 @@ const LoginForm = () => {
             <button
               type="submit"
               disabled={loading}
+              onClick={() => soundManager.play('click')}
               className="btn-primary w-full py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
@@ -158,25 +164,69 @@ const LoginForm = () => {
 
           {/* Demo Accounts */}
           <div className="mt-8 p-4 bg-white bg-opacity-10 rounded-lg">
-            <h3 className="text-white font-semibold mb-3 text-center">حسابات تجريبية</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-purple-200">مدير عام:</span>
-                <span className="text-white font-mono">admin / admin123</span>
+            <h3 className="text-white font-semibold mb-3 text-center">حسابات النظام</h3>
+            <div className="space-y-3 text-sm">
+              {/* مدير عام */}
+              <div className="bg-red-500 bg-opacity-20 p-3 rounded-lg border border-red-500 border-opacity-30">
+                <div className="flex justify-between items-center">
+                  <span className="text-red-300 font-semibold">مدير عام</span>
+                  <span className="text-white font-mono">admin / admin123</span>
+                </div>
+                <div className="text-xs text-red-200 mt-1">صلاحيات كاملة - إدارة النظام</div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-200">مدير:</span>
-                <span className="text-white font-mono">manager / manager123</span>
+              
+              {/* مديرين */}
+              <div className="bg-yellow-500 bg-opacity-20 p-3 rounded-lg border border-yellow-500 border-opacity-30">
+                <div className="flex justify-between items-center">
+                  <span className="text-yellow-300 font-semibold">مدير متجر</span>
+                  <span className="text-white font-mono">سارة أحمد / sara123</span>
+                </div>
+                <div className="text-xs text-yellow-200 mt-1">إدارة المبيعات والمخزون</div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-purple-200">كاشير:</span>
-                <span className="text-white font-mono">cashier / cashier123</span>
+              
+              <div className="bg-yellow-500 bg-opacity-20 p-3 rounded-lg border border-yellow-500 border-opacity-30">
+                <div className="flex justify-between items-center">
+                  <span className="text-yellow-300 font-semibold">مدير متجر</span>
+                  <span className="text-white font-mono">خالد محمود / khaled123</span>
+                </div>
+                <div className="text-xs text-yellow-200 mt-1">إدارة المبيعات والمخزون</div>
+              </div>
+              
+              {/* كاشيرات */}
+              <div className="bg-green-500 bg-opacity-20 p-3 rounded-lg border border-green-500 border-opacity-30">
+                <div className="flex justify-between items-center">
+                  <span className="text-green-300 font-semibold">كاشير</span>
+                  <span className="text-white font-mono">محمد علي / mohamed123</span>
+                </div>
+                <div className="text-xs text-green-200 mt-1">نقاط البيع والمبيعات</div>
+              </div>
+              
+              <div className="bg-green-500 bg-opacity-20 p-3 rounded-lg border border-green-500 border-opacity-30">
+                <div className="flex justify-between items-center">
+                  <span className="text-green-300 font-semibold">كاشير</span>
+                  <span className="text-white font-mono">نورا حسن / nora123</span>
+                </div>
+                <div className="text-xs text-green-200 mt-1">نقاط البيع والمبيعات</div>
               </div>
             </div>
           </div>
 
+          {/* Instructions */}
+          <div className="mt-6 p-4 bg-blue-500 bg-opacity-20 border border-blue-500 border-opacity-30 rounded-lg">
+            <div className="flex items-center mb-2">
+              <Key className="h-4 w-4 text-blue-300 mr-2" />
+              <span className="text-blue-300 text-sm font-semibold">تعليمات تسجيل الدخول</span>
+            </div>
+            <div className="text-blue-200 text-xs space-y-1">
+              <div>• استخدم اسم المستخدم وكلمة المرور من القائمة أعلاه</div>
+              <div>• المدير العام: صلاحيات كاملة في النظام</div>
+              <div>• المدير: إدارة المبيعات والمخزون</div>
+              <div>• الكاشير: نقاط البيع والمبيعات</div>
+            </div>
+          </div>
+
           {/* Security Notice */}
-          <div className="mt-6 p-3 bg-yellow-500 bg-opacity-20 border border-yellow-500 border-opacity-30 rounded-lg">
+          <div className="mt-4 p-3 bg-yellow-500 bg-opacity-20 border border-yellow-500 border-opacity-30 rounded-lg">
             <div className="flex items-center">
               <Shield className="h-4 w-4 text-yellow-300 mr-2" />
               <span className="text-yellow-300 text-xs">

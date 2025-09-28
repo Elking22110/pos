@@ -15,6 +15,8 @@ import {
   Download,
   Upload
 } from 'lucide-react';
+import soundManager from '../utils/soundManager.js';
+import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -216,7 +218,7 @@ const Customers = () => {
             <p className="text-purple-200 text-xs md:text-xs lg:text-sm xl:text-sm font-medium">إدارة بيانات عملاء متجر الأزياء الرجالية</p>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => { soundManager.play('openWindow'); setShowAddModal(true); }}
             className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold"
           >
             <Plus className="h-4 w-4 md:h-5 md:w-5 mr-2 md:mr-3" />
@@ -438,14 +440,14 @@ const Customers = () => {
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => handleEditCustomer(customer)}
+                        onClick={() => { soundManager.play('update'); handleEditCustomer(customer); }}
                         className="text-blue-400 hover:text-blue-300 transition-colors p-2 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg"
                         title="تعديل العميل"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteCustomer(customer.id)}
+                        onClick={() => { soundManager.play('delete'); handleDeleteCustomer(customer.id); }}
                         className="text-red-400 hover:text-red-300 transition-colors p-2 hover:bg-red-500 hover:bg-opacity-20 rounded-lg"
                         title="حذف العميل"
                       >
@@ -460,10 +462,48 @@ const Customers = () => {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      </div>
+
+      {/* Add/Edit Customer Modal - خارج الكارد الرئيسي تماماً */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="glass-card p-6 w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              setShowAddModal(false);
+              setEditingCustomer(null);
+              setNewCustomer({
+                name: '',
+                phone: '',
+                email: '',
+                address: ''
+              });
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
             <h2 className="text-xl font-bold text-white mb-4">
               {editingCustomer ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}
             </h2>
@@ -513,6 +553,7 @@ const Customers = () => {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => {
+                  soundManager.play('closeWindow');
                   setShowAddModal(false);
                   setEditingCustomer(null);
                   setNewCustomer({
@@ -527,7 +568,7 @@ const Customers = () => {
                 إلغاء
               </button>
               <button
-                onClick={editingCustomer ? handleUpdateCustomer : handleAddCustomer}
+                onClick={() => { soundManager.play('save'); editingCustomer ? handleUpdateCustomer() : handleAddCustomer(); }}
                 className="btn-primary px-4 py-2"
               >
                 {editingCustomer ? 'تحديث' : 'إضافة'}
@@ -536,7 +577,6 @@ const Customers = () => {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };

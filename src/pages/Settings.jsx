@@ -28,6 +28,8 @@ import {
   Phone
 } from 'lucide-react';
 import DataManager from '../components/DataManager';
+import soundManager from '../utils/soundManager.js';
+import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
 import StoreSettings from '../components/StoreSettings';
 import ShiftManager from '../components/ShiftManager';
 import BackupManager from '../components/BackupManager';
@@ -44,26 +46,51 @@ const Settings = () => {
         phone: '01234567890',
         role: 'admin',
         status: 'active',
+        password: btoa('admin123'),
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
       },
       {
         id: 2,
-        name: 'أحمد محمد',
-        email: 'ahmed@store.com',
+        name: 'سارة أحمد',
+        email: 'sara@elkingstore.com',
         phone: '01234567891',
         role: 'manager',
         status: 'active',
+        password: btoa('sara123'),
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
       },
       {
         id: 3,
-        name: 'فاطمة علي',
-        email: 'fatima@store.com',
+        name: 'محمد علي',
+        email: 'mohamed@elkingstore.com',
         phone: '01234567892',
         role: 'cashier',
         status: 'active',
+        password: btoa('mohamed123'),
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+      },
+      {
+        id: 4,
+        name: 'نورا حسن',
+        email: 'nora@elkingstore.com',
+        phone: '01234567893',
+        role: 'cashier',
+        status: 'active',
+        password: btoa('nora123'),
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+      },
+      {
+        id: 5,
+        name: 'خالد محمود',
+        email: 'khaled@elkingstore.com',
+        phone: '01234567894',
+        role: 'manager',
+        status: 'active',
+        password: btoa('khaled123'),
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
       }
@@ -125,6 +152,13 @@ const Settings = () => {
       primaryColor: savedSettings.primaryColor || '#8B5CF6',
       sidebarCollapsed: savedSettings.sidebarCollapsed !== undefined ? savedSettings.sidebarCollapsed : false,
     
+    // إعدادات الأصوات
+      soundsEnabled: savedSettings.soundsEnabled !== undefined ? savedSettings.soundsEnabled : true,
+      soundVolume: savedSettings.soundVolume !== undefined ? savedSettings.soundVolume : 0.7,
+      clickSounds: savedSettings.clickSounds !== undefined ? savedSettings.clickSounds : true,
+      notificationSounds: savedSettings.notificationSounds !== undefined ? savedSettings.notificationSounds : true,
+      systemSounds: savedSettings.systemSounds !== undefined ? savedSettings.systemSounds : true,
+    
     // إعدادات النظام
       maintenanceMode: savedSettings.maintenanceMode !== undefined ? savedSettings.maintenanceMode : false,
       debugMode: savedSettings.debugMode !== undefined ? savedSettings.debugMode : false,
@@ -140,6 +174,7 @@ const Settings = () => {
     { id: 'data', name: 'إدارة البيانات', icon: Database },
     { id: 'notifications', name: 'الإشعارات', icon: Bell },
     { id: 'appearance', name: 'المظهر', icon: Palette },
+    { id: 'sounds', name: 'الأصوات', icon: Bell },
     { id: 'system', name: 'النظام', icon: Monitor }
   ];
 
@@ -152,8 +187,49 @@ const Settings = () => {
 
   // دوال إدارة المستخدمين
   const addUser = () => {
+    // التحقق من صحة البيانات
     if (!newUser.name || !newUser.email || !newUser.phone || !newUser.password) {
+      soundManager.play('error');
       alert('يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
+
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      soundManager.play('error');
+      alert('يرجى إدخال بريد إلكتروني صحيح');
+      return;
+    }
+
+    // التحقق من صحة رقم الهاتف
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(newUser.phone.replace(/\s/g, ''))) {
+      soundManager.play('error');
+      alert('يرجى إدخال رقم هاتف صحيح (10-15 رقم)');
+      return;
+    }
+
+    // التحقق من قوة كلمة المرور
+    if (newUser.password.length < 6) {
+      soundManager.play('error');
+      alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
+    // التحقق من عدم تكرار البريد الإلكتروني
+    const emailExists = users.some(user => user.email.toLowerCase() === newUser.email.toLowerCase());
+    if (emailExists) {
+      soundManager.play('error');
+      alert('البريد الإلكتروني مستخدم بالفعل');
+      return;
+    }
+
+    // التحقق من عدم تكرار اسم المستخدم
+    const nameExists = users.some(user => user.name.toLowerCase() === newUser.name.toLowerCase());
+    if (nameExists) {
+      soundManager.play('error');
+      alert('اسم المستخدم مستخدم بالفعل');
       return;
     }
 
@@ -162,36 +238,96 @@ const Settings = () => {
       ...newUser,
       status: 'active',
       createdAt: new Date().toISOString(),
-      lastLogin: null
+      lastLogin: null,
+      // تشفير كلمة المرور (بسيط)
+      password: btoa(newUser.password)
     };
 
-    setUsers([...users, user]);
-    localStorage.setItem('users', JSON.stringify([...users, user]));
+    const updatedUsers = [...users, user];
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     setNewUser({ name: '', email: '', phone: '', role: 'cashier', password: '' });
     setShowAddUserModal(false);
+    soundManager.play('save');
     alert('تم إضافة المستخدم بنجاح!');
   };
 
   const editUser = () => {
+    // التحقق من صحة البيانات
     if (!editingUser.name || !editingUser.email || !editingUser.phone) {
+      soundManager.play('error');
       alert('يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
+
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editingUser.email)) {
+      soundManager.play('error');
+      alert('يرجى إدخال بريد إلكتروني صحيح');
+      return;
+    }
+
+    // التحقق من صحة رقم الهاتف
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(editingUser.phone.replace(/\s/g, ''))) {
+      soundManager.play('error');
+      alert('يرجى إدخال رقم هاتف صحيح (10-15 رقم)');
       return;
     }
 
     // منع تغيير دور المستخدم admin
     if (editingUser.name === 'admin' && editingUser.role !== 'admin') {
+      soundManager.play('error');
       alert('لا يمكن تغيير دور المستخدم الرئيسي (admin)!');
       return;
     }
 
-    setUsers(users.map(user => 
-      user.id === editingUser.id ? editingUser : user
-    ));
-    localStorage.setItem('users', JSON.stringify(users.map(user => 
-      user.id === editingUser.id ? editingUser : user
-    )));
+    // التحقق من عدم تكرار البريد الإلكتروني (باستثناء المستخدم الحالي)
+    const emailExists = users.some(user => 
+      user.email.toLowerCase() === editingUser.email.toLowerCase() && user.id !== editingUser.id
+    );
+    if (emailExists) {
+      soundManager.play('error');
+      alert('البريد الإلكتروني مستخدم بالفعل من قبل مستخدم آخر');
+      return;
+    }
+
+    // التحقق من عدم تكرار اسم المستخدم (باستثناء المستخدم الحالي)
+    const nameExists = users.some(user => 
+      user.name.toLowerCase() === editingUser.name.toLowerCase() && user.id !== editingUser.id
+    );
+    if (nameExists) {
+      soundManager.play('error');
+      alert('اسم المستخدم مستخدم بالفعل من قبل مستخدم آخر');
+      return;
+    }
+
+    // التحقق من كلمة المرور الجديدة إذا تم إدخالها
+    if (editingUser.newPassword && editingUser.newPassword.length < 6) {
+      soundManager.play('error');
+      alert('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
+    // إنشاء المستخدم المحدث
+    const updatedUser = {
+      ...editingUser,
+      // تحديث كلمة المرور إذا تم إدخال كلمة جديدة
+      password: editingUser.newPassword ? btoa(editingUser.newPassword) : editingUser.password,
+      // إزالة newPassword من البيانات المحفوظة
+      newPassword: undefined
+    };
+
+    const updatedUsers = users.map(user => 
+      user.id === editingUser.id ? updatedUser : user
+    );
+    
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     setShowEditUserModal(false);
     setEditingUser(null);
+    soundManager.play('save');
     alert('تم تحديث المستخدم بنجاح!');
   };
 
@@ -200,28 +336,58 @@ const Settings = () => {
     
     // منع حذف المستخدم admin
     if (userToDelete && userToDelete.name === 'admin' && userToDelete.role === 'admin') {
+      soundManager.play('error');
       alert('لا يمكن حذف المستخدم الرئيسي (admin)!');
       return;
     }
+
+    // التحقق من وجود مستخدمين آخرين
+    const activeUsers = users.filter(user => user.status === 'active' && user.id !== userId);
+    if (activeUsers.length === 0) {
+      soundManager.play('error');
+      alert('لا يمكن حذف آخر مستخدم نشط في النظام!');
+      return;
+    }
     
-    if (window.confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
-      setUsers(users.filter(user => user.id !== userId));
-      localStorage.setItem('users', JSON.stringify(users.filter(user => user.id !== userId)));
+    const confirmMessage = `هل أنت متأكد من حذف المستخدم "${userToDelete?.name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`;
+    if (window.confirm(confirmMessage)) {
+      const updatedUsers = users.filter(user => user.id !== userId);
+      setUsers(updatedUsers);
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+      soundManager.play('delete');
       alert('تم حذف المستخدم بنجاح!');
     }
   };
 
   const toggleUserStatus = (userId) => {
-    setUsers(users.map(user => 
+    const userToToggle = users.find(user => user.id === userId);
+    
+    // منع إلغاء تفعيل المستخدم admin
+    if (userToToggle && userToToggle.name === 'admin' && userToToggle.role === 'admin') {
+      soundManager.play('error');
+      alert('لا يمكن إلغاء تفعيل المستخدم الرئيسي (admin)!');
+      return;
+    }
+
+    // التحقق من وجود مستخدمين نشطين آخرين عند إلغاء التفعيل
+    if (userToToggle.status === 'active') {
+      const activeUsers = users.filter(user => user.status === 'active' && user.id !== userId);
+      if (activeUsers.length === 0) {
+        soundManager.play('error');
+        alert('لا يمكن إلغاء تفعيل آخر مستخدم نشط في النظام!');
+        return;
+      }
+    }
+
+    const updatedUsers = users.map(user => 
       user.id === userId 
         ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
         : user
-    ));
-    localStorage.setItem('users', JSON.stringify(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    )));
+    );
+    
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    soundManager.play('update');
   };
 
   const openEditModal = (user) => {
@@ -229,17 +395,86 @@ const Settings = () => {
     setShowEditUserModal(true);
   };
 
+  // إعادة تعيين المستخدمين الافتراضيين
+  const resetToDefaultUsers = () => {
+    if (window.confirm('هل أنت متأكد من إعادة تعيين جميع المستخدمين إلى الافتراضيين؟\n\nسيتم حذف جميع المستخدمين الحاليين!')) {
+      const defaultUsers = [
+        {
+          id: 1,
+          name: 'admin',
+          email: 'admin@elkingstore.com',
+          phone: '01234567890',
+          role: 'admin',
+          status: 'active',
+          password: btoa('admin123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: 'سارة أحمد',
+          email: 'sara@elkingstore.com',
+          phone: '01234567891',
+          role: 'manager',
+          status: 'active',
+          password: btoa('sara123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 3,
+          name: 'محمد علي',
+          email: 'mohamed@elkingstore.com',
+          phone: '01234567892',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('mohamed123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 4,
+          name: 'نورا حسن',
+          email: 'nora@elkingstore.com',
+          phone: '01234567893',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('nora123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 5,
+          name: 'خالد محمود',
+          email: 'khaled@elkingstore.com',
+          phone: '01234567894',
+          role: 'manager',
+          status: 'active',
+          password: btoa('khaled123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        }
+      ];
+      
+      setUsers(defaultUsers);
+      localStorage.setItem('users', JSON.stringify(defaultUsers));
+      soundManager.play('save');
+      alert('تم إعادة تعيين المستخدمين بنجاح!');
+    }
+  };
+
   // ضمان وجود المستخدم admin دائماً
   const ensureAdminUser = () => {
     const adminExists = users.some(user => user.name === 'admin' && user.role === 'admin');
     if (!adminExists) {
       const adminUser = {
-        id: Date.now(),
+        id: 1,
         name: 'admin',
         email: 'admin@elkingstore.com',
         phone: '01234567890',
         role: 'admin',
         status: 'active',
+        password: btoa('admin123'),
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString()
       };
@@ -248,8 +483,85 @@ const Settings = () => {
     }
   };
 
+  // مسح جميع المستخدمين وإعادة تعيين الافتراضيين
+  const clearAndResetUsers = () => {
+    if (window.confirm('هل أنت متأكد من مسح جميع المستخدمين وإعادة تعيين النظام؟\n\nسيتم حذف جميع المستخدمين الحاليين وإعادة إنشاء المستخدمين الافتراضيين!')) {
+      // مسح localStorage
+      localStorage.removeItem('users');
+      
+      // إعادة تعيين المستخدمين
+      const defaultUsers = [
+        {
+          id: 1,
+          name: 'admin',
+          email: 'admin@elkingstore.com',
+          phone: '01234567890',
+          role: 'admin',
+          status: 'active',
+          password: btoa('admin123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: 'سارة أحمد',
+          email: 'sara@elkingstore.com',
+          phone: '01234567891',
+          role: 'manager',
+          status: 'active',
+          password: btoa('sara123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 3,
+          name: 'محمد علي',
+          email: 'mohamed@elkingstore.com',
+          phone: '01234567892',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('mohamed123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 4,
+          name: 'نورا حسن',
+          email: 'nora@elkingstore.com',
+          phone: '01234567893',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('nora123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 5,
+          name: 'خالد محمود',
+          email: 'khaled@elkingstore.com',
+          phone: '01234567894',
+          role: 'manager',
+          status: 'active',
+          password: btoa('khaled123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        }
+      ];
+      
+      setUsers(defaultUsers);
+      localStorage.setItem('users', JSON.stringify(defaultUsers));
+      soundManager.play('save');
+      alert('تم مسح وإعادة تعيين جميع المستخدمين بنجاح!\n\nيمكنك الآن تسجيل الدخول بالمستخدمين الجدد.');
+    }
+  };
+
   // تشغيل الدالة عند تحميل المكون
   React.useEffect(() => {
+    // حفظ المستخدمين الافتراضيين في localStorage إذا لم تكن موجودة
+    const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    if (savedUsers.length === 0) {
+      localStorage.setItem('users', JSON.stringify(users));
+    }
     ensureAdminUser();
   }, []);
 
@@ -474,28 +786,98 @@ const Settings = () => {
     </div>
   );
 
-  const renderUserSettings = () => (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-white">إدارة المستخدمين</h2>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setShowAddUserModal(true);
-          }}
-          className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center border border-green-500 border-opacity-30 min-h-[40px] cursor-pointer"
-          style={{ 
-            pointerEvents: 'auto',
-            zIndex: 10,
-            position: 'relative'
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          إضافة مستخدم
-        </button>
-      </div>
+  const renderUserSettings = () => {
+    const activeUsers = users.filter(user => user.status === 'active').length;
+    const inactiveUsers = users.filter(user => user.status === 'inactive').length;
+    const adminUsers = users.filter(user => user.role === 'admin').length;
+    const managerUsers = users.filter(user => user.role === 'manager').length;
+    const cashierUsers = users.filter(user => user.role === 'cashier').length;
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-white">إدارة المستخدمين</h2>
+          <div className="flex space-x-3">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                soundManager.play('delete');
+                clearAndResetUsers();
+              }}
+              className="bg-red-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center border border-red-500 border-opacity-30 min-h-[40px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
+              title="مسح جميع المستخدمين وإعادة تعيين النظام"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              مسح وإعادة تعيين
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                soundManager.play('refresh');
+                resetToDefaultUsers();
+              }}
+              className="bg-orange-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center border border-orange-500 border-opacity-30 min-h-[40px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
+              title="إعادة تعيين المستخدمين الافتراضيين"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              إعادة تعيين
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                soundManager.play('openWindow');
+                setShowAddUserModal(true);
+              }}
+              className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center border border-green-500 border-opacity-30 min-h-[40px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              إضافة مستخدم
+            </button>
+          </div>
+        </div>
+
+        {/* User Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="glass-card p-4 text-center">
+            <div className="text-2xl font-bold text-white">{users.length}</div>
+            <div className="text-sm text-purple-200">إجمالي المستخدمين</div>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <div className="text-2xl font-bold text-green-400">{activeUsers}</div>
+            <div className="text-sm text-purple-200">نشط</div>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <div className="text-2xl font-bold text-red-400">{inactiveUsers}</div>
+            <div className="text-sm text-purple-200">غير نشط</div>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-400">{managerUsers}</div>
+            <div className="text-sm text-purple-200">مدير</div>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <div className="text-2xl font-bold text-blue-400">{cashierUsers}</div>
+            <div className="text-sm text-purple-200">كاشير</div>
+          </div>
+        </div>
 
       {/* Users Table */}
       <div className="glass-card overflow-hidden">
@@ -569,6 +951,7 @@ const Settings = () => {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        soundManager.play('update');
                         toggleUserStatus(user.id);
                       }}
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full transition-all duration-200 min-h-[30px] cursor-pointer ${
@@ -586,7 +969,7 @@ const Settings = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-200">
-                    {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('ar-SA') : 'لم يسجل دخول'}
+                    {user.lastLogin ? formatDate(user.lastLogin) : 'لم يسجل دخول'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -596,6 +979,7 @@ const Settings = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              soundManager.play('update');
                               openEditModal(user);
                             }}
                             className="text-blue-400 hover:text-blue-300 transition-all duration-200 p-2 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg min-w-[35px] min-h-[35px] flex items-center justify-center cursor-pointer"
@@ -612,6 +996,7 @@ const Settings = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              soundManager.play('delete');
                               deleteUser(user.id);
                             }}
                             className="text-red-400 hover:text-red-300 transition-all duration-200 p-2 hover:bg-red-500 hover:bg-opacity-20 rounded-lg min-w-[35px] min-h-[35px] flex items-center justify-center cursor-pointer"
@@ -637,175 +1022,9 @@ const Settings = () => {
         </div>
       </div>
 
-      {/* Add User Modal */}
-      {showAddUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="glass-card p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white">إضافة مستخدم جديد</h3>
-              <button
-                onClick={() => setShowAddUserModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-        <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الاسم</label>
-                <input
-                  type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                  placeholder="اسم المستخدم"
-                />
-        </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">البريد الإلكتروني</label>
-          <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                  placeholder="example@store.com"
-                />
       </div>
-      
-        <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الهاتف</label>
-                <input
-                  type="tel"
-                  value={newUser.phone}
-                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                  placeholder="01234567890"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الدور</label>
-          <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                >
-                  <option value="cashier">كاشير</option>
-                  <option value="manager">مدير متجر</option>
-                  <option value="admin">مدير عام</option>
-          </select>
-        </div>
-              
-        <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">كلمة المرور</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                  placeholder="كلمة المرور"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowAddUserModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={addUser}
-                className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30"
-              >
-                إضافة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {showEditUserModal && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="glass-card p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white">تعديل المستخدم</h3>
-              <button
-                onClick={() => setShowEditUserModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الاسم</label>
-                <input
-                  type="text"
-                  value={editingUser.name}
-                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">البريد الإلكتروني</label>
-                <input
-                  type="email"
-                  value={editingUser.email}
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الهاتف</label>
-                <input
-                  type="tel"
-                  value={editingUser.phone}
-                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-1">الدور</label>
-          <select
-                  value={editingUser.role}
-                  onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                  className="input-modern w-full px-3 py-2 text-right"
-                >
-                  <option value="cashier">كاشير</option>
-                  <option value="manager">مدير متجر</option>
-                  <option value="admin">مدير عام</option>
-          </select>
-        </div>
-      </div>
-      
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowEditUserModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                إلغاء
-        </button>
-              <button
-                onClick={editUser}
-                className="bg-blue-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors border border-blue-500 border-opacity-30"
-              >
-                حفظ التغييرات
-        </button>
-      </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
 
   const renderBackupSettings = () => (
     <BackupManager />
@@ -885,7 +1104,7 @@ const Settings = () => {
         <label className="block text-sm font-medium text-purple-200 mb-2">المظهر</label>
         <div className="grid grid-cols-2 gap-4">
           <button
-            onClick={() => handleSettingChange('theme', 'light')}
+            onClick={() => { soundManager.play('click'); handleSettingChange('theme', 'light'); }}
             className={`p-4 rounded-lg border-2 flex flex-col items-center ${
               settings.theme === 'light' 
                 ? 'border-purple-500 bg-purple-500 bg-opacity-20 text-purple-300' 
@@ -896,7 +1115,7 @@ const Settings = () => {
             <span className="text-sm font-medium">فاتح</span>
           </button>
           <button
-            onClick={() => handleSettingChange('theme', 'dark')}
+            onClick={() => { soundManager.play('click'); handleSettingChange('theme', 'dark'); }}
             className={`p-4 rounded-lg border-2 flex flex-col items-center ${
               settings.theme === 'dark' 
                 ? 'border-purple-500 bg-purple-500 bg-opacity-20 text-purple-300' 
@@ -915,7 +1134,7 @@ const Settings = () => {
           {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'].map(color => (
             <button
               key={color}
-              onClick={() => handleSettingChange('primaryColor', color)}
+              onClick={() => { soundManager.play('click'); handleSettingChange('primaryColor', color); }}
               className={`w-12 h-12 rounded-lg border-2 ${
                 settings.primaryColor === color ? 'border-white' : 'border-white border-opacity-30'
               }`}
@@ -940,6 +1159,117 @@ const Settings = () => {
           <div className="w-11 h-6 bg-white bg-opacity-20 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
         </label>
       </div>
+    </div>
+  );
+
+  const renderSoundSettings = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-lg">
+        <div>
+          <h4 className="font-medium text-white">تفعيل الأصوات</h4>
+          <p className="text-sm text-purple-200">تشغيل الأصوات في جميع العمليات</p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={settings.soundsEnabled}
+            onChange={(e) => { soundManager.play('click'); handleSettingChange('soundsEnabled', e.target.checked); }}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-white bg-opacity-20 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+        </label>
+      </div>
+
+      {settings.soundsEnabled && (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-purple-200 mb-2">
+              مستوى الصوت: {Math.round(settings.soundVolume * 100)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={settings.soundVolume}
+              onChange={(e) => { soundManager.play('click'); handleSettingChange('soundVolume', parseFloat(e.target.value)); }}
+              className="w-full h-2 bg-white bg-opacity-20 rounded-lg appearance-none cursor-pointer slider"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-lg">
+            <div>
+              <h4 className="font-medium text-white">أصوات النقر</h4>
+              <p className="text-sm text-purple-200">أصوات النقر على الأزرار والحقول</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.clickSounds}
+                onChange={(e) => { soundManager.play('click'); handleSettingChange('clickSounds', e.target.checked); }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white bg-opacity-20 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-lg">
+            <div>
+              <h4 className="font-medium text-white">أصوات الإشعارات</h4>
+              <p className="text-sm text-purple-200">أصوات النجاح والخطأ والإشعارات</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.notificationSounds}
+                onChange={(e) => { soundManager.play('click'); handleSettingChange('notificationSounds', e.target.checked); }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white bg-opacity-20 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white bg-opacity-10 rounded-lg">
+            <div>
+              <h4 className="font-medium text-white">أصوات النظام</h4>
+              <p className="text-sm text-purple-200">أصوات بدء وإنهاء الورديات والعمليات</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.systemSounds}
+                onChange={(e) => { soundManager.play('click'); handleSettingChange('systemSounds', e.target.checked); }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white bg-opacity-20 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          <div className="p-4 bg-blue-500 bg-opacity-20 rounded-lg border border-blue-500 border-opacity-30">
+            <h4 className="font-medium text-blue-300 mb-2">🎵 اختبار الأصوات</h4>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => soundManager.play('click')}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+              >
+                نقر
+              </button>
+              <button
+                onClick={() => soundManager.play('success')}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+              >
+                نجاح
+              </button>
+              <button
+                onClick={() => soundManager.play('error')}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+              >
+                خطأ
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -1017,6 +1347,7 @@ const Settings = () => {
       case 'data': return <DataManager />;
       case 'notifications': return renderNotificationSettings();
       case 'appearance': return renderAppearanceSettings();
+      case 'sounds': return renderSoundSettings();
       case 'system': return renderSystemSettings();
       default: return <StoreSettings />;
     }
@@ -1045,6 +1376,7 @@ const Settings = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                soundManager.play('save');
                 saveSettings();
               }}
               className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold min-h-[40px] cursor-pointer"
@@ -1073,6 +1405,7 @@ const Settings = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      soundManager.play('click');
                       setActiveTab(tab.id);
                     }}
                     className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 min-h-[50px] cursor-pointer ${
@@ -1102,6 +1435,7 @@ const Settings = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  soundManager.play('save');
                   exportSettings();
                 }}
                 className="w-full bg-blue-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center border border-blue-500 border-opacity-30 min-h-[40px] cursor-pointer"
@@ -1134,6 +1468,7 @@ const Settings = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  soundManager.play('warning');
                   resetSettings();
                 }}
                 className="w-full bg-red-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center border border-red-500 border-opacity-30 min-h-[40px] cursor-pointer"
@@ -1158,6 +1493,303 @@ const Settings = () => {
         </div>
         </div>
       </div>
+
+      {/* Add User Modal - خارج الكارد الرئيسي تماماً */}
+      {showAddUserModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              setShowAddUserModal(false);
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">إضافة مستخدم جديد</h3>
+              <button
+                onClick={() => { soundManager.play('closeWindow'); setShowAddUserModal(false); }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الاسم</label>
+                <input
+                  type="text"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                  placeholder="اسم المستخدم"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">البريد الإلكتروني</label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                  placeholder="example@store.com"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الهاتف</label>
+                <input
+                  type="tel"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                  placeholder="01234567890"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">كلمة المرور</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                  placeholder="كلمة المرور (6 أحرف على الأقل)"
+                />
+                {newUser.password && (
+                  <div className="mt-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-700 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            newUser.password.length < 6 
+                              ? 'bg-red-500 w-1/3' 
+                              : newUser.password.length < 8 
+                              ? 'bg-yellow-500 w-2/3' 
+                              : 'bg-green-500 w-full'
+                          }`}
+                        ></div>
+                      </div>
+                      <span className={`text-xs ${
+                        newUser.password.length < 6 
+                          ? 'text-red-400' 
+                          : newUser.password.length < 8 
+                          ? 'text-yellow-400' 
+                          : 'text-green-400'
+                      }`}>
+                        {newUser.password.length < 6 
+                          ? 'ضعيفة' 
+                          : newUser.password.length < 8 
+                          ? 'متوسطة' 
+                          : 'قوية'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الدور</label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                >
+                  <option value="cashier">كاشير</option>
+                  <option value="manager">مدير متجر</option>
+                  <option value="admin">مدير عام</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => { soundManager.play('closeWindow'); setShowAddUserModal(false); }}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { soundManager.play('save'); addUser(); }}
+                className="bg-green-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors border border-green-500 border-opacity-30"
+              >
+                إضافة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal - خارج الكارد الرئيسي تماماً */}
+      {showEditUserModal && editingUser && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              setShowEditUserModal(false);
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">تعديل المستخدم</h3>
+              <button
+                onClick={() => { soundManager.play('closeWindow'); setShowEditUserModal(false); }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الاسم</label>
+                <input
+                  type="text"
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">البريد الإلكتروني</label>
+                <input
+                  type="email"
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الهاتف</label>
+                <input
+                  type="tel"
+                  value={editingUser.phone}
+                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">الدور</label>
+                <select
+                  value={editingUser.role}
+                  onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                >
+                  <option value="cashier">كاشير</option>
+                  <option value="manager">مدير متجر</option>
+                  <option value="admin">مدير عام</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-1">كلمة المرور الجديدة (اختياري)</label>
+                <input
+                  type="password"
+                  value={editingUser.newPassword || ''}
+                  onChange={(e) => setEditingUser({...editingUser, newPassword: e.target.value})}
+                  className="input-modern w-full px-3 py-2 text-right"
+                  placeholder="اتركها فارغة للحفاظ على كلمة المرور الحالية"
+                />
+                {editingUser.newPassword && (
+                  <div className="mt-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-700 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            editingUser.newPassword.length < 6 
+                              ? 'bg-red-500 w-1/3' 
+                              : editingUser.newPassword.length < 8 
+                              ? 'bg-yellow-500 w-2/3' 
+                              : 'bg-green-500 w-full'
+                          }`}
+                        ></div>
+                      </div>
+                      <span className={`text-xs ${
+                        editingUser.newPassword.length < 6 
+                          ? 'text-red-400' 
+                          : editingUser.newPassword.length < 8 
+                          ? 'text-yellow-400' 
+                          : 'text-green-400'
+                      }`}>
+                        {editingUser.newPassword.length < 6 
+                          ? 'ضعيفة' 
+                          : editingUser.newPassword.length < 8 
+                          ? 'متوسطة' 
+                          : 'قوية'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => { soundManager.play('closeWindow'); setShowEditUserModal(false); }}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { soundManager.play('save'); editUser(); }}
+                className="bg-blue-600 bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors border border-blue-500 border-opacity-30"
+              >
+                حفظ التغييرات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

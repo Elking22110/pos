@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import backupManager from '../utils/backupManager.js';
 import { useNotifications } from './NotificationSystem';
+import { formatDate } from '../utils/dateUtils.js';
 
 const BackupManager = () => {
   const { notifySuccess, notifyError } = useNotifications();
@@ -136,16 +137,6 @@ const BackupManager = () => {
     }
   };
 
-  // تنسيق التاريخ
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   // تنسيق الحجم
   const formatSize = (bytes) => {
@@ -288,16 +279,32 @@ const BackupManager = () => {
       <div className="glass-card hover-lift animate-fadeInUp">
         <div className="flex flex-wrap gap-4">
           <button
-            onClick={createManualBackup}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              createManualBackup();
+            }}
             disabled={isLoading}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+            className="flex items-center space-x-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors min-h-[50px] cursor-pointer"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 10,
+              position: 'relative'
+            }}
           >
-            <Database className="h-4 w-4" />
-            <span>إنشاء نسخة احتياطية</span>
+            <Database className="h-5 w-5" />
+            <span className="font-semibold">إنشاء نسخة احتياطية</span>
           </button>
-          <label className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
-            <Upload className="h-4 w-4" />
-            <span>استيراد نسخة احتياطية</span>
+          <label 
+            className="flex items-center space-x-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors cursor-pointer min-h-[50px]"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 10,
+              position: 'relative'
+            }}
+          >
+            <Upload className="h-5 w-5" />
+            <span className="font-semibold">استيراد نسخة احتياطية</span>
             <input
               type="file"
               accept=".json"
@@ -306,12 +313,21 @@ const BackupManager = () => {
             />
           </label>
           <button
-            onClick={loadData}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              loadData();
+            }}
             disabled={isLoading}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors"
+            className="flex items-center space-x-2 px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors min-h-[50px] cursor-pointer"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 10,
+              position: 'relative'
+            }}
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>تحديث</span>
+            <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="font-semibold">تحديث</span>
           </button>
         </div>
       </div>
@@ -355,25 +371,52 @@ const BackupManager = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => exportBackup(backup.id)}
-                      className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        exportBackup(backup.id);
+                      }}
+                      className="p-3 text-blue-400 hover:text-blue-300 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg transition-colors min-h-[40px] min-w-[40px] cursor-pointer"
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10,
+                        position: 'relative'
+                      }}
                       title="تصدير"
                     >
-                      <Download className="h-4 w-4" />
+                      <Download className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => restoreBackup(backup.id)}
-                      className="p-2 text-green-400 hover:text-green-300 hover:bg-green-500 hover:bg-opacity-20 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        restoreBackup(backup.id);
+                      }}
+                      className="p-3 text-green-400 hover:text-green-300 hover:bg-green-500 hover:bg-opacity-20 rounded-lg transition-colors min-h-[40px] min-w-[40px] cursor-pointer"
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10,
+                        position: 'relative'
+                      }}
                       title="استعادة"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => deleteBackup(backup.id)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500 hover:bg-opacity-20 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteBackup(backup.id);
+                      }}
+                      className="p-3 text-red-400 hover:text-red-300 hover:bg-red-500 hover:bg-opacity-20 rounded-lg transition-colors min-h-[40px] min-w-[40px] cursor-pointer"
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10,
+                        position: 'relative'
+                      }}
                       title="حذف"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>

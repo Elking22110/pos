@@ -13,12 +13,18 @@ import {
   FolderPlus,
   Image,
   Camera,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { useNotifications } from '../components/NotificationSystem';
 import { ImageManager } from '../utils/imageManager';
+import soundManager from '../utils/soundManager.js';
+import emojiManager from '../utils/emojiManager.js';
+import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
+import { useAuth } from '../components/AuthProvider';
 
 const Products = () => {
+  const { user, hasPermission } = useAuth();
   const { 
     notifyProductAdded, 
     notifyProductUpdated, 
@@ -29,6 +35,26 @@ const Products = () => {
     notifyValidationError,
     notifyDuplicateError
   } = useNotifications();
+
+  // فحص الصلاحيات
+  if (!hasPermission('manage_products')) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
+        <div className="glass-card p-8 text-center max-w-md mx-4">
+          <div className="w-20 h-20 bg-red-500 bg-opacity-20 rounded-full mx-auto mb-6 flex items-center justify-center">
+            <Shield className="h-10 w-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">غير مصرح لك</h2>
+          <p className="text-purple-200 mb-6">
+            ليس لديك صلاحية للوصول إلى صفحة المنتجات. يرجى التواصل مع المدير.
+          </p>
+          <div className="text-sm text-gray-400">
+            دورك الحالي: {user?.role === 'admin' ? 'مدير عام' : user?.role === 'manager' ? 'مدير' : 'كاشير'}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [products, setProducts] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -242,6 +268,15 @@ const Products = () => {
     // حفظ الفئات في localStorage
     localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
     
+    // إرسال إشارة لتحديث نقطة البيع فورياً
+    window.dispatchEvent(new CustomEvent('categoriesUpdated', { 
+      detail: { 
+        action: 'added',
+        category: newCategory,
+        categories: updatedCategories
+      } 
+    }));
+    
     // إعادة تعيين النموذج
     setNewCategory({ name: '', description: '' });
     setShowAddCategoryModal(false);
@@ -332,6 +367,15 @@ const Products = () => {
     // حفظ المنتجات في localStorage
     localStorage.setItem('products', JSON.stringify(updatedProducts));
     
+    // إرسال إشارة لتحديث نقطة البيع فورياً
+    window.dispatchEvent(new CustomEvent('productsUpdated', { 
+      detail: { 
+        action: 'added',
+        product: product,
+        products: updatedProducts
+      } 
+    }));
+    
       setNewProduct({
         name: '',
         price: '',
@@ -366,6 +410,15 @@ const Products = () => {
       // حفظ المنتجات في localStorage
       localStorage.setItem('products', JSON.stringify(updatedProducts));
       
+      // إرسال إشارة لتحديث نقطة البيع فورياً
+      window.dispatchEvent(new CustomEvent('productsUpdated', { 
+        detail: { 
+          action: 'updated',
+          product: updatedProduct,
+          products: updatedProducts
+        } 
+      }));
+      
       setEditingProduct(null);
       setNewProduct({
         name: '',
@@ -389,6 +442,15 @@ const Products = () => {
       
       // حفظ المنتجات في localStorage
       localStorage.setItem('products', JSON.stringify(updatedProducts));
+      
+      // إرسال إشارة لتحديث نقطة البيع فورياً
+      window.dispatchEvent(new CustomEvent('productsUpdated', { 
+        detail: { 
+          action: 'deleted',
+          product: product,
+          products: updatedProducts
+        } 
+      }));
       
       // إشعار نجاح الحذف
       notifyProductDeleted(product.name);
@@ -450,6 +512,7 @@ const Products = () => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              soundManager.play('openWindow');
               setShowAddModal(true);
             }}
             className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold min-h-[40px] cursor-pointer"
@@ -528,7 +591,7 @@ const Products = () => {
                   <div className="mt-2 text-xs text-orange-200 max-h-20 overflow-y-auto">
                     {lowStockProducts.map(product => (
                       <div key={product.id} className="truncate">
-                        {product.name}: {product.stock}/{product.minStock}
+                        {emojiManager.getProductEmoji(product)} {product.name}: {product.stock}/{product.minStock}
                       </div>
                     ))}
                   </div>
@@ -584,6 +647,17 @@ const Products = () => {
                 const updatedProductsLocal = products.map(p => p.category === selectedCategory ? { ...p, category: newName } : p);
                 setProducts(updatedProductsLocal);
                 localStorage.setItem('products', JSON.stringify(updatedProductsLocal));
+                
+                // إرسال إشارة لتحديث نقطة البيع فورياً
+                window.dispatchEvent(new CustomEvent('categoriesUpdated', { 
+                  detail: { 
+                    action: 'updated',
+                    oldCategory: selectedCategory,
+                    newCategory: newName,
+                    categories: updatedCategories
+                  } 
+                }));
+                
                 notifyCategoryUpdated(selectedCategory, newName);
                 setSelectedCategory(newName);
               }}
@@ -732,7 +806,7 @@ const Products = () => {
                     <td className="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
-                          <div className="text-sm md:text-base font-medium text-white">{product.name}</div>
+                          <div className="text-sm md:text-base font-medium text-white">{emojiManager.getProductEmoji(product)} {product.name}</div>
                         </div>
                       </div>
                     </td>
@@ -753,6 +827,7 @@ const Products = () => {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            soundManager.play('update');
                             handleEditProduct(product);
                           }}
                           className="p-2 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-blue-300 hover:text-blue-200 min-w-[40px] min-h-[40px] cursor-pointer"
@@ -768,6 +843,7 @@ const Products = () => {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            soundManager.play('delete');
                             handleDeleteProduct(product.id);
                           }}
                           className="p-2 bg-red-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 text-red-300 hover:text-red-200 min-w-[40px] min-h-[40px] cursor-pointer"
@@ -788,121 +864,6 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Add/Edit Modal */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="glass-card p-6 md:p-8 w-full max-w-md mx-4 animate-fadeInUp">
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 bg-gradient-to-r from-white via-blue-200 to-indigo-300 bg-clip-text text-transparent">
-                {editingProduct ? 'تعديل المنتج' : 'إضافة منتج جديد'}
-              </h2>
-            
-              <div className="space-y-4 md:space-y-5">
-                <div>
-                  <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">اسم المنتج</label>
-                  <input
-                    type="text"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                    className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
-                    placeholder="أدخل اسم المنتج"
-                  />
-                </div>
-              
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">السعر</label>
-                    <input
-                      type="number"
-                      value={newProduct.price}
-                      onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              
-                
-                
-                <div>
-                  <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">التصنيف</label>
-                  <select
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                    className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium appearance-none bg-gray-800 border-gray-600 text-white"
-                  >
-                    {categories.map(category => (
-                      <option key={category.name} value={category.name} className="bg-gray-800 text-white">{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">المخزون</label>
-                    <input
-                      type="number"
-                      value={newProduct.stock}
-                      onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">الحد الأدنى</label>
-                    <input
-                      type="number"
-                      value={newProduct.minStock}
-                      onChange={(e) => setNewProduct({...newProduct, minStock: e.target.value})}
-                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-            </div>
-            
-              <div className="flex justify-end space-x-3 md:space-x-4 mt-6 md:mt-8">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowAddModal(false);
-                    setEditingProduct(null);
-                    setNewProduct({
-                      name: '',
-                      price: '',
-                      category: 'أحذية',
-                      stock: '',
-                      minStock: ''
-                    });
-                  }}
-                  className="px-4 md:px-6 py-2 md:py-3 text-blue-300 hover:text-blue-200 font-semibold transition-colors duration-300 min-h-[40px] cursor-pointer"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10,
-                    position: 'relative'
-                  }}
-                >
-                  إلغاء
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    editingProduct ? handleUpdateProduct() : handleAddProduct();
-                  }}
-                  className="btn-primary px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-semibold min-h-[40px] cursor-pointer"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10,
-                    position: 'relative'
-                  }}
-                >
-                  {editingProduct ? 'تحديث المنتج' : 'إضافة المنتج'}
-                </button>
-              </div>
-          </div>
-        </div>
-      )}
 
       {/* نافذة إضافة فئة جديدة */}
       {showAddCategoryModal && (
@@ -1041,6 +1002,326 @@ const Products = () => {
         </div>
       )}
       </div>
+
+      {/* Add/Edit Product Modal - خارج الكارد الرئيسي تماماً */}
+        {showAddModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              setShowAddModal(false);
+              setEditingProduct(null);
+              setNewProduct({
+                name: '',
+                price: '',
+                category: 'أحذية',
+                stock: '',
+                minStock: ''
+              });
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 md:p-8 w-full max-w-md mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 bg-gradient-to-r from-white via-blue-200 to-indigo-300 bg-clip-text text-transparent">
+                {editingProduct ? 'تعديل المنتج' : 'إضافة منتج جديد'}
+              </h2>
+            
+              <div className="space-y-4 md:space-y-5">
+                <div>
+                  <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">اسم المنتج</label>
+                  <input
+                    type="text"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
+                    placeholder="أدخل اسم المنتج"
+                  />
+                </div>
+              
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">السعر</label>
+                    <input
+                      type="number"
+                      value={newProduct.price}
+                      onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">التصنيف</label>
+                  <select
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                    className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium appearance-none bg-gray-800 border-gray-600 text-white"
+                  >
+                    {categories.map(category => (
+                      <option key={category.name} value={category.name} className="bg-gray-800 text-white">{category.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">المخزون</label>
+                    <input
+                      type="number"
+                      value={newProduct.stock}
+                      onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm md:text-base font-semibold text-purple-200 mb-2">الحد الأدنى</label>
+                    <input
+                      type="number"
+                      value={newProduct.minStock}
+                      onChange={(e) => setNewProduct({...newProduct, minStock: e.target.value})}
+                      className="input-modern w-full px-3 md:px-4 py-3 md:py-4 text-base md:text-lg text-right font-medium"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+            </div>
+            
+              <div className="flex justify-end space-x-3 md:space-x-4 mt-6 md:mt-8">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  soundManager.play('closeWindow');
+                    setShowAddModal(false);
+                    setEditingProduct(null);
+                    setNewProduct({
+                      name: '',
+                      price: '',
+                      category: 'أحذية',
+                      stock: '',
+                      minStock: ''
+                    });
+                  }}
+                  className="px-4 md:px-6 py-2 md:py-3 text-blue-300 hover:text-blue-200 font-semibold transition-colors duration-300 min-h-[40px] cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  soundManager.play('save');
+                    editingProduct ? handleUpdateProduct() : handleAddProduct();
+                  }}
+                  className="btn-primary px-4 md:px-6 py-2 md:py-3 text-sm md:text-base font-semibold min-h-[40px] cursor-pointer"
+                >
+                  {editingProduct ? 'تحديث المنتج' : 'إضافة المنتج'}
+                </button>
+              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Modal - خارج الكارد الرئيسي تماماً */}
+      {showAddCategoryModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              setShowAddCategoryModal(false);
+              setNewCategory({ name: '', description: '' });
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white">إضافة فئة جديدة</h3>
+              <button
+                onClick={() => {
+                  soundManager.play('closeWindow');
+                  setShowAddCategoryModal(false);
+                  setNewCategory({ name: '', description: '' });
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  اسم الفئة *
+                </label>
+                <input
+                  type="text"
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                  className="input-modern w-full"
+                  placeholder="أدخل اسم الفئة"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  وصف الفئة
+                </label>
+                <textarea
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+                  className="input-modern w-full h-20 resize-none"
+                  placeholder="وصف مختصر للفئة"
+                />
+              </div>
+
+              {/* معاينة الفئة */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">معاينة الفئة:</h4>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <span className="text-blue-400 font-medium">{newCategory.name || 'اسم الفئة'}</span>
+                  <span className="text-gray-400 text-sm">({newCategory.description || 'وصف الفئة'})</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  soundManager.play('closeWindow');
+                  setShowAddCategoryModal(false);
+                  setNewCategory({ name: '', description: '' });
+                }}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => {
+                  soundManager.play('save');
+                  handleAddCategory();
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                إضافة الفئة
+              </button>
+            </div>
+          </div>
+        </div>
+        )}
+
+      {/* Image Modal - خارج الكارد الرئيسي تماماً */}
+        {showImageModal && selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999] backdrop-blur-sm"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              soundManager.play('closeWindow');
+              closeImageModal();
+            }
+          }}
+        >
+          <div 
+            className="glass-card p-6 w-full max-w-2xl mx-4 animate-fadeInUp"
+            style={{ 
+              position: 'relative',
+              zIndex: 10000,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white">صورة المنتج</h2>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  soundManager.play('closeWindow');
+                    closeImageModal();
+                  }}
+                  className="p-2 bg-gray-600 rounded-full hover:bg-gray-700 transition-colors duration-300 min-w-[40px] min-h-[40px] cursor-pointer"
+                >
+                  <X className="h-5 w-5 text-white" />
+                </button>
+              </div>
+              
+              <div className="text-center">
+                {productImages[selectedImage] ? (
+                  <img 
+                    src={productImages[selectedImage]} 
+                    alt="صورة المنتج"
+                    className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                  />
+                ) : (
+                  <img 
+                    src={ImageManager.getDefaultImage(products.find(p => p.id === selectedImage)?.category || 'إكسسوارات')} 
+                    alt="صورة المنتج الافتراضية"
+                    className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                  />
+                )}
+              </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

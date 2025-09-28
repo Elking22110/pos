@@ -11,7 +11,7 @@ export default defineConfig({
   // إعدادات الخادم
   server: {
     port: 5173,
-    host: true,
+    host: '0.0.0.0', // السماح بالوصول من جميع عناوين IP
     open: true,
     cors: true,
     hmr: {

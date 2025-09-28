@@ -10,17 +10,96 @@ import Products from "./pages/Products";
 import Reports from "./pages/Reports";
 import Customers from "./pages/Customers";
 import Settings from "./pages/Settings";
+import Shifts from "./pages/Shifts";
 import UserProfile from "./components/UserProfile";
 import LoginForm from "./components/LoginForm"; // Added LoginForm
 import { observerManager } from "./utils/observerManager"; // إضافة مدير المراقبين
 import { DataValidator, StorageMonitor } from "./utils/dataValidation"; // إضافة نظام التحقق
 import DataLoader from "./components/DataLoader"; // إضافة محمل البيانات
+import databaseManager from "./utils/database"; // إضافة مدير قاعدة البيانات
 
 function App() {
   const navigate = useNavigate();
 
   // تهيئة نظام التحقق من البيانات
   useEffect(() => {
+    // تهيئة قاعدة البيانات أولاً
+    const initDatabase = async () => {
+      try {
+        await databaseManager.init();
+        console.log('✅ تم تهيئة قاعدة البيانات بنجاح');
+      } catch (error) {
+        console.error('❌ خطأ في تهيئة قاعدة البيانات:', error);
+      }
+    };
+    
+    // إعادة تعيين المستخدمين الافتراضيين
+    const resetUsers = () => {
+      const defaultUsers = [
+        {
+          id: 1,
+          name: 'admin',
+          email: 'admin@elkingstore.com',
+          phone: '01234567890',
+          role: 'admin',
+          status: 'active',
+          password: btoa('admin123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: 'سارة أحمد',
+          email: 'sara@elkingstore.com',
+          phone: '01234567891',
+          role: 'manager',
+          status: 'active',
+          password: btoa('sara123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 3,
+          name: 'محمد علي',
+          email: 'mohamed@elkingstore.com',
+          phone: '01234567892',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('mohamed123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 4,
+          name: 'نورا حسن',
+          email: 'nora@elkingstore.com',
+          phone: '01234567893',
+          role: 'cashier',
+          status: 'active',
+          password: btoa('nora123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        },
+        {
+          id: 5,
+          name: 'خالد محمود',
+          email: 'khaled@elkingstore.com',
+          phone: '01234567894',
+          role: 'manager',
+          status: 'active',
+          password: btoa('khaled123'),
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        }
+      ];
+      
+      localStorage.setItem('users', JSON.stringify(defaultUsers));
+      console.log('✅ تم إعادة تعيين المستخدمين الافتراضيين');
+    };
+    
+    initDatabase();
+    resetUsers();
+    
     // تهيئة مراقب التخزين
     StorageMonitor.init();
 
@@ -88,6 +167,10 @@ function App() {
             event.preventDefault();
             navigate('/settings');
             break;
+          case '7':
+            event.preventDefault();
+            navigate('/shifts');
+            break;
           default:
             break;
         }
@@ -126,23 +209,28 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/pos" element={
-                <ProtectedRoute requiredPermission="write">
+                <ProtectedRoute requiredPermission="pos_access">
                   <POS />
                 </ProtectedRoute>
               } />
               <Route path="/products" element={
-                <ProtectedRoute requiredPermission="write">
+                <ProtectedRoute requiredPermission="manage_products">
                   <Products />
                 </ProtectedRoute>
               } />
               <Route path="/reports" element={
-                <ProtectedRoute requiredPermission="read">
+                <ProtectedRoute requiredPermission="view_reports">
                   <Reports />
                 </ProtectedRoute>
               } />
               <Route path="/customers" element={
-                <ProtectedRoute requiredPermission="write">
+                <ProtectedRoute requiredPermission="customer_access">
                   <Customers />
+                </ProtectedRoute>
+              } />
+              <Route path="/shifts" element={
+                <ProtectedRoute requiredPermission="manage_shifts">
+                  <Shifts />
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={

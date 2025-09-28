@@ -99,7 +99,17 @@ class DatabaseManager {
 
   // إضافة بيانات
   async add(storeName, data) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.add(data);
@@ -111,7 +121,17 @@ class DatabaseManager {
 
   // تحديث بيانات
   async update(storeName, data) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.put(data);
@@ -123,7 +143,17 @@ class DatabaseManager {
 
   // حذف بيانات
   async delete(storeName, id) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.delete(id);
@@ -135,7 +165,17 @@ class DatabaseManager {
 
   // الحصول على بيانات
   async get(storeName, id) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const request = store.get(id);
@@ -147,7 +187,17 @@ class DatabaseManager {
 
   // الحصول على جميع البيانات
   async getAll(storeName) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const request = store.getAll();
@@ -159,7 +209,17 @@ class DatabaseManager {
 
   // البحث في البيانات
   async search(storeName, indexName, value) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const index = store.index(indexName);
@@ -172,7 +232,17 @@ class DatabaseManager {
 
   // الحصول على البيانات بفلترة
   async getByRange(storeName, indexName, range) {
+    // التأكد من تهيئة قاعدة البيانات
+    if (!this.db) {
+      await this.init();
+    }
+    
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('قاعدة البيانات غير مهيأة'));
+        return;
+      }
+      
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const index = store.index(indexName);

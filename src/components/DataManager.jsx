@@ -3,6 +3,7 @@ import { useAuth } from './AuthProvider';
 import databaseManager from '../utils/database';
 import { design } from '../utils/design';
 import { perf } from '../utils/performance';
+import { formatDate } from '../utils/dateUtils.js';
 import { 
   Download, 
   Upload, 
@@ -251,9 +252,6 @@ const DataManager = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('ar-SA');
-  };
 
   return (
     <div className="glass-card hover-lift animate-fadeInUp p-6">
@@ -270,47 +268,83 @@ const DataManager = () => {
       {/* Tabs */}
       <div className="flex space-x-4 mb-6">
         <button
-          onClick={() => setActiveTab('backup')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActiveTab('backup');
+          }}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors min-h-[50px] cursor-pointer ${
             activeTab === 'backup' 
               ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30' 
               : 'text-white hover:bg-white hover:bg-opacity-10'
           }`}
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 10,
+            position: 'relative'
+          }}
         >
-          <HardDrive className="h-4 w-4 inline mr-2" />
+          <HardDrive className="h-5 w-5 inline mr-2" />
           النسخ الاحتياطية
         </button>
         <button
-          onClick={() => setActiveTab('import')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActiveTab('import');
+          }}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors min-h-[50px] cursor-pointer ${
             activeTab === 'import' 
               ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30' 
               : 'text-white hover:bg-white hover:bg-opacity-10'
           }`}
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 10,
+            position: 'relative'
+          }}
         >
-          <Upload className="h-4 w-4 inline mr-2" />
+          <Upload className="h-5 w-5 inline mr-2" />
           الاستيراد/التصدير
         </button>
         <button
-          onClick={() => setActiveTab('stats')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActiveTab('stats');
+          }}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors min-h-[50px] cursor-pointer ${
             activeTab === 'stats' 
               ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30' 
               : 'text-white hover:bg-white hover:bg-opacity-10'
           }`}
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 10,
+            position: 'relative'
+          }}
         >
-          <BarChart3 className="h-4 w-4 inline mr-2" />
+          <BarChart3 className="h-5 w-5 inline mr-2" />
           الإحصائيات
         </button>
         <button
-          onClick={() => setActiveTab('cleanup')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActiveTab('cleanup');
+          }}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors min-h-[50px] cursor-pointer ${
             activeTab === 'cleanup' 
               ? 'bg-purple-500 bg-opacity-20 text-purple-300 border border-purple-500 border-opacity-30' 
               : 'text-white hover:bg-white hover:bg-opacity-10'
           }`}
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 10,
+            position: 'relative'
+          }}
         >
-          <Trash2 className="h-4 w-4 inline mr-2" />
+          <Trash2 className="h-5 w-5 inline mr-2" />
           التنظيف
         </button>
       </div>
@@ -343,12 +377,21 @@ const DataManager = () => {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-white">النسخ الاحتياطية</h3>
             <button
-              onClick={handleBackup}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBackup();
+              }}
               disabled={loading}
-              className="btn-primary px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center min-h-[50px] cursor-pointer"
+              style={{ 
+                pointerEvents: 'auto',
+                zIndex: 10,
+                position: 'relative'
+              }}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              إنشاء نسخة احتياطية
+              <RefreshCw className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <span className="font-semibold">إنشاء نسخة احتياطية</span>
             </button>
           </div>
 
@@ -371,11 +414,20 @@ const DataManager = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleRestore(backup.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRestore(backup.id);
+                    }}
                     disabled={loading}
-                    className="bg-green-500 bg-opacity-20 text-green-300 px-3 py-1 rounded-lg hover:bg-opacity-30 transition-colors disabled:opacity-50"
+                    className="bg-green-500 bg-opacity-20 text-green-300 px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors disabled:opacity-50 min-h-[40px] cursor-pointer"
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10,
+                      position: 'relative'
+                    }}
                   >
-                    استعادة
+                    <span className="font-semibold">استعادة</span>
                   </button>
                 </div>
               ))
@@ -391,20 +443,38 @@ const DataManager = () => {
             <h3 className="text-lg font-semibold text-white mb-4">التصدير</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
-                onClick={() => handleExport('json')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleExport('json');
+                }}
                 disabled={loading}
-                className="btn-primary p-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="btn-primary p-6 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
-                <Download className="h-5 w-5 mr-2" />
-                تصدير JSON
+                <Download className="h-6 w-6 mr-3" />
+                <span className="font-semibold text-lg">تصدير JSON</span>
               </button>
               <button
-                onClick={() => handleExport('csv')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleExport('csv');
+                }}
                 disabled={loading}
-                className="btn-primary p-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="btn-primary p-6 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px] cursor-pointer"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
-                <FileText className="h-5 w-5 mr-2" />
-                تصدير CSV
+                <FileText className="h-6 w-6 mr-3" />
+                <span className="font-semibold text-lg">تصدير CSV</span>
               </button>
             </div>
           </div>
@@ -422,10 +492,15 @@ const DataManager = () => {
               />
               <label
                 htmlFor="import-file"
-                className="btn-primary p-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="btn-primary p-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[60px]"
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10,
+                  position: 'relative'
+                }}
               >
-                <Upload className="h-5 w-5 mr-2" />
-                استيراد ملف
+                <Upload className="h-6 w-6 mr-3" />
+                <span className="font-semibold text-lg">استيراد ملف</span>
               </label>
             </div>
           </div>

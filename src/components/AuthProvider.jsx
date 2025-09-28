@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import soundManager from '../utils/soundManager.js';
 
 const AuthContext = createContext();
 
@@ -49,28 +50,55 @@ export const AuthProvider = ({ children }) => {
       // محاكاة تسجيل الدخول محلياً
       await new Promise(resolve => setTimeout(resolve, 1000)); // محاكاة تأخير الشبكة
       
-      // التحقق من بيانات تسجيل الدخول
-      const validCredentials = {
-        'admin': 'admin123',
-        'cashier': 'cashier123',
-        'manager': 'manager123'
-      };
+      // التحقق من بيانات تسجيل الدخول - أولاً من المستخدمين المحفوظين
+      const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = savedUsers.find(u => 
+        u.name.toLowerCase() === username.toLowerCase() && 
+        u.status === 'active'
+      );
       
-      if (!validCredentials[username] || validCredentials[username] !== password) {
+      let isValidUser = false;
+      let userRole = 'cashier';
+      let userEmail = '';
+      
+      if (user) {
+        // فك تشفير كلمة المرور (بسيط)
+        const decryptedPassword = atob(user.password || '');
+        if (decryptedPassword === password) {
+          isValidUser = true;
+          userRole = user.role;
+          userEmail = user.email;
+        }
+      } else {
+        // التحقق من المستخدمين الافتراضيين (للتوافق مع النظام القديم)
+        const validCredentials = {
+          'admin': 'admin123',
+          'cashier': 'cashier123',
+          'manager': 'manager123'
+        };
+        
+        if (validCredentials[username] && validCredentials[username] === password) {
+          isValidUser = true;
+          userRole = username === 'admin' ? 'admin' : username === 'manager' ? 'manager' : 'cashier';
+          userEmail = `${username}@mensfashion.com`;
+        }
+      }
+      
+      if (!isValidUser) {
         throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة');
       }
       
       // إنشاء بيانات المستخدم
       const mockUser = {
-        id: Date.now(),
+        id: user ? user.id : Date.now(),
         username: username,
-        email: `${username}@mensfashion.com`,
-        role: username === 'admin' ? 'admin' : username === 'manager' ? 'manager' : 'cashier',
-        permissions: username === 'admin' 
+        email: userEmail,
+        role: userRole,
+        permissions: userRole === 'admin' 
           ? ['read', 'write', 'delete', 'admin'] 
-          : username === 'manager'
-          ? ['read', 'write', 'delete']
-          : ['read', 'write'],
+          : userRole === 'manager'
+          ? ['read', 'write', 'delete', 'manage_products', 'view_reports', 'manage_shifts']
+          : ['pos_access', 'customer_access', 'manage_shifts'],
         lastLogin: new Date().toISOString(),
         avatar: `https://ui-avatars.com/api/?name=${username}&background=random&color=ffffff`
       };
@@ -84,13 +112,29 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('auth_token', mockToken);
       localStorage.setItem('user_data', encryptData(mockUser));
       
+      // تحديث آخر دخول في قاعدة بيانات المستخدمين
+      if (user) {
+        const updatedUsers = savedUsers.map(u => 
+          u.id === user.id 
+            ? { ...u, lastLogin: new Date().toISOString() }
+            : u
+        );
+        localStorage.setItem('users', JSON.stringify(updatedUsers));
+      }
+      
       // تسجيل عملية تسجيل الدخول
       logActivity('LOGIN', { username, success: true });
+      
+      // تشغيل صوت تسجيل الدخول الناجح
+      soundManager.play('login');
       
       return { success: true, user: mockUser };
     } catch (error) {
       // تسجيل محاولة تسجيل دخول فاشلة
       logActivity('LOGIN_FAILED', { username, error: error.message });
+      
+      // تشغيل صوت تسجيل الدخول الفاشل
+      soundManager.play('error');
       
       console.error('خطأ في تسجيل الدخول:', error);
       return { success: false, error: error.message };
@@ -101,6 +145,9 @@ export const AuthProvider = ({ children }) => {
 
   // تسجيل الخروج
   const logout = () => {
+    // تشغيل صوت تسجيل الخروج
+    soundManager.play('logout');
+    
     // تسجيل عملية تسجيل الخروج
     logActivity('LOGOUT', { username: user?.username });
     

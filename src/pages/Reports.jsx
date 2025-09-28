@@ -1,5 +1,9 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNotifications } from '../components/NotificationSystem';
+import soundManager from '../utils/soundManager.js';
+import emojiManager from '../utils/emojiManager.js';
+import { formatDate, formatTimeOnly, formatDateTime } from '../utils/dateUtils.js';
+import { useAuth } from '../components/AuthProvider';
 import { 
   Calendar,
   Download,
@@ -23,7 +27,8 @@ import {
   Smartphone,
   Receipt,
   X,
-  CheckCircle
+  CheckCircle,
+  Shield
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -43,7 +48,28 @@ import {
 } from 'recharts';
 
 const Reports = () => {
+  const { user, hasPermission } = useAuth();
   const { notifySuccess, notifyError } = useNotifications();
+
+  // فحص الصلاحيات
+  if (!hasPermission('view_reports')) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
+        <div className="glass-card p-8 text-center max-w-md mx-4">
+          <div className="w-20 h-20 bg-red-500 bg-opacity-20 rounded-full mx-auto mb-6 flex items-center justify-center">
+            <Shield className="h-10 w-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">غير مصرح لك</h2>
+          <p className="text-purple-200 mb-6">
+            ليس لديك صلاحية للوصول إلى صفحة التقارير. يرجى التواصل مع المدير.
+          </p>
+          <div className="text-sm text-gray-400">
+            دورك الحالي: {user?.role === 'admin' ? 'مدير عام' : user?.role === 'manager' ? 'مدير' : 'كاشير'}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedReport, setSelectedReport] = useState('sales');
   const [salesData, setSalesData] = useState([]);
@@ -904,11 +930,24 @@ const Reports = () => {
 
   const getPartialInvoices = () => {
     // فلترة الفواتير التي لها عربون ومبلغ متبقي
-    return allSales.filter(invoice => 
-      invoice.downPayment && 
-      invoice.downPayment.enabled && 
-      invoice.downPayment.remaining > 0
-    );
+    const partialInvoices = allSales.filter(invoice => {
+      // التحقق من وجود عربون
+      if (!invoice.downPayment || !invoice.downPayment.enabled) {
+        return false;
+      }
+      
+      // حساب المبلغ المتبقي
+      const remaining = invoice.downPayment.remaining || (invoice.total - invoice.downPayment.amount);
+      
+      // إرجاع الفواتير التي لها مبلغ متبقي أكبر من 0
+      return remaining > 0;
+    });
+    
+    console.log('جميع المبيعات:', allSales.length, 'فاتورة');
+    console.log('الفواتير غير المكتملة:', partialInvoices.length, 'فاتورة');
+    console.log('تفاصيل الفواتير غير المكتملة:', partialInvoices);
+    
+    return partialInvoices;
   };
 
   const payRemainingAmount = (invoiceId) => {
@@ -1160,6 +1199,7 @@ const Reports = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                soundManager.play('save');
                 exportReport();
               }}
               className="btn-primary flex items-center px-3 md:px-4 py-2 md:py-3 text-xs md:text-xs lg:text-sm font-semibold min-h-[40px] cursor-pointer"
@@ -1176,6 +1216,7 @@ const Reports = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                soundManager.play('print');
                 exportToPDF();
               }}
               className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 md:px-4 py-2 md:py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center text-xs md:text-xs lg:text-sm font-semibold shadow-lg min-h-[40px] cursor-pointer"
@@ -1192,6 +1233,7 @@ const Reports = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                soundManager.play('update');
                 window.location.reload();
               }}
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 md:px-4 py-2 md:py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center text-xs md:text-xs lg:text-sm font-semibold shadow-lg min-h-[40px] cursor-pointer"
@@ -1217,7 +1259,7 @@ const Reports = () => {
             return (
               <button
                 key={report.id}
-                onClick={() => setSelectedReport(report.id)}
+                onClick={() => { soundManager.play('click'); setSelectedReport(report.id); }}
                 className={`p-3 md:p-4 rounded-xl md:rounded-lg border-2 flex flex-col items-center transition-all duration-300 ${
                   selectedReport === report.id
                     ? 'border-blue-500 bg-blue-500 bg-opacity-20 text-blue-300 shadow-glow'
@@ -1239,7 +1281,7 @@ const Reports = () => {
           {periods.map((period) => (
             <button
               key={period.id}
-              onClick={() => setSelectedPeriod(period.id)}
+              onClick={() => { soundManager.play('click'); setSelectedPeriod(period.id); }}
               className={`px-3 md:px-4 py-2 rounded-lg border transition-colors ${
                 selectedPeriod === period.id
                   ? 'border-blue-500 bg-blue-500 bg-opacity-20 text-blue-300 shadow-glow'
@@ -1413,19 +1455,24 @@ const Reports = () => {
             {selectedReport === 'products' && 'المنتجات الأكثر مبيعاً'}
             {selectedReport === 'customers' && 'أفضل العملاء'}
             {selectedReport === 'inventory' && 'حالة المخزون'}
-              {selectedReport === 'invoices' && 'فواتير الوردية النشطة'}
+            {selectedReport === 'invoices' && 'فواتير الوردية النشطة'}
+            {selectedReport === 'partial-invoices' && 'الفواتير غير المكتملة'}
           </h3>
             
             {/* فلترة وبحث الفواتير */}
-            {selectedReport === 'invoices' && (
+            {(selectedReport === 'invoices' || selectedReport === 'partial-invoices') && (
               <div className="w-full">
                 {/* إحصائيات سريعة */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <div className="bg-green-500 bg-opacity-20 px-4 py-3 rounded-lg border border-green-500 border-opacity-30">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-green-300 text-sm">إجمالي الفواتير</p>
-                        <p className="text-white font-bold text-xl">{allSales.length}</p>
+                        <p className="text-green-300 text-sm">
+                          {selectedReport === 'partial-invoices' ? 'الفواتير غير المكتملة' : 'إجمالي الفواتير'}
+                        </p>
+                        <p className="text-white font-bold text-xl">
+                          {selectedReport === 'partial-invoices' ? getPartialInvoices().length : allSales.length}
+                        </p>
         </div>
                       <Receipt className="h-8 w-8 text-green-400" />
                     </div>
@@ -1434,9 +1481,17 @@ const Reports = () => {
                   <div className="bg-blue-500 bg-opacity-20 px-4 py-3 rounded-lg border border-blue-500 border-opacity-30">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-blue-300 text-sm">المبلغ الإجمالي</p>
+                        <p className="text-blue-300 text-sm">
+                          {selectedReport === 'partial-invoices' ? 'المبلغ المتبقي' : 'المبلغ الإجمالي'}
+                        </p>
                         <p className="text-white font-bold text-xl">
-                          {allSales.reduce((sum, invoice) => sum + invoice.total, 0)} جنيه
+                          {selectedReport === 'partial-invoices' 
+                            ? getPartialInvoices().reduce((sum, invoice) => {
+                                const remaining = invoice.downPayment.remaining || (invoice.total - invoice.downPayment.amount);
+                                return sum + remaining;
+                              }, 0).toFixed(2)
+                            : allSales.reduce((sum, invoice) => sum + invoice.total, 0)
+                          } جنيه
                         </p>
                       </div>
                       <DollarSign className="h-8 w-8 text-blue-400" />
@@ -1537,7 +1592,7 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white divide-opacity-20">
-              {getCurrentData().length === 0 && selectedReport === 'invoices' ? (
+              {getCurrentData().length === 0 && (selectedReport === 'invoices' || selectedReport === 'partial-invoices') ? (
                 <tr>
                   <td colSpan="6" className="px-4 md:px-6 py-12 text-center text-purple-200">
                     <div className="flex flex-col items-center">
@@ -1551,7 +1606,7 @@ const Reports = () => {
                   </td>
                 </tr>
               ) : (
-                selectedReport === 'invoices' ? (
+                (selectedReport === 'invoices' || selectedReport === 'partial-invoices') ? (
                   (() => {
                     // تجميع الفواتير حسب التاريخ
                     const groupedInvoices = getCurrentData().reduce((groups, invoice) => {
@@ -1600,7 +1655,7 @@ const Reports = () => {
                   )}
                   {selectedReport === 'products' && (
                     <>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.name}</td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{emojiManager.getProductEmoji(item)} {item.name}</td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.sales}</td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">${item.revenue}</td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">${item.profit}</td>
@@ -1614,7 +1669,7 @@ const Reports = () => {
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.lastVisit}</td>
                     </>
                   )}
-                  {selectedReport === 'invoices' && (
+                  {(selectedReport === 'invoices' || selectedReport === 'partial-invoices') && (
                     <>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">
                         <div className="flex items-center space-x-2">
@@ -1651,8 +1706,8 @@ const Reports = () => {
                         </div>
                         {item.downPayment && item.downPayment.enabled && (
                           <div className="text-xs text-blue-300 mt-1">
-                            <div>عربون: {item.downPayment.amount} جنيه</div>
-                            <div>متبقي: {item.total - item.downPayment.amount} جنيه</div>
+                            <div>عربون: {item.downPayment.amount.toFixed(2)} جنيه</div>
+                            <div>متبقي: {(item.downPayment.remaining || (item.total - item.downPayment.amount)).toFixed(2)} جنيه</div>
                           </div>
                         )}
                       </td>
@@ -1663,6 +1718,7 @@ const Reports = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              soundManager.play('openWindow');
                               openInvoiceModal(item);
                             }}
                             className="text-blue-400 hover:text-blue-300 transition-all duration-200 p-2 hover:bg-blue-500 hover:bg-opacity-20 rounded-lg border border-blue-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
@@ -1675,12 +1731,32 @@ const Reports = () => {
                           >
                             <Eye className="h-5 w-5" />
                           </button>
+                          {item.downPayment && item.downPayment.enabled && item.downPayment.remaining > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('cash');
+                                payRemainingAmount(item.id);
+                              }}
+                              className="text-green-400 hover:text-green-300 transition-all duration-200 p-2 hover:bg-green-500 hover:bg-opacity-20 rounded-lg border border-green-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
+                              title="سداد المبلغ المتبقي"
+                              style={{ 
+                                pointerEvents: 'auto',
+                                zIndex: 10,
+                                position: 'relative'
+                              }}
+                            >
+                              <DollarSign className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              editInvoice(item.id);
-                            }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('update');
+                                editInvoice(item.id);
+                              }}
                             className="text-green-400 hover:text-green-300 transition-all duration-200 p-2 hover:bg-green-500 hover:bg-opacity-20 rounded-lg border border-green-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
                             title="تعديل الفاتورة"
                             style={{ 
@@ -1692,11 +1768,12 @@ const Reports = () => {
                             <Edit className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              reprintInvoice(item);
-                            }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('print');
+                                reprintInvoice(item);
+                              }}
                             className="text-purple-400 hover:text-purple-300 transition-all duration-200 p-2 hover:bg-purple-500 hover:bg-opacity-20 rounded-lg border border-purple-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
                             title="طباعة مرة أخرى"
                             style={{ 
@@ -1708,11 +1785,12 @@ const Reports = () => {
                             <Printer className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              processReturn(item.id);
-                            }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('refund');
+                                processReturn(item.id);
+                              }}
                             className="text-orange-400 hover:text-orange-300 transition-all duration-200 p-2 hover:bg-orange-500 hover:bg-opacity-20 rounded-lg border border-orange-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
                             title="إجراء مرتجعات"
                             style={{ 
@@ -1724,11 +1802,12 @@ const Reports = () => {
                             <RotateCcw className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              deleteInvoice(item.id);
-                            }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('delete');
+                                deleteInvoice(item.id);
+                              }}
                             className="text-red-400 hover:text-red-300 transition-all duration-200 p-2 hover:bg-red-500 hover:bg-opacity-20 rounded-lg border border-red-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
                             title="حذف الفاتورة"
                             style={{ 
@@ -1783,7 +1862,7 @@ const Reports = () => {
                       )}
                       {selectedReport === 'products' && (
                         <>
-                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.name}</td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{emojiManager.getProductEmoji(item)} {item.name}</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.category}</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.sold}</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">${item.revenue}</td>
@@ -1819,7 +1898,7 @@ const Reports = () => {
                       )}
                       {selectedReport === 'inventory' && (
                         <>
-                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.name}</td>
+                          <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{emojiManager.getProductEmoji(item)} {item.name}</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.stock}</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.value.toFixed(2)} جنيه</td>
                           <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{item.lowStockCount}</td>
@@ -1936,6 +2015,7 @@ const Reports = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  soundManager.play('closeWindow');
                   closeInvoiceModal();
                 }}
                 className="text-gray-400 hover:text-white transition-all duration-200 p-3 hover:bg-red-500 hover:bg-opacity-20 rounded-xl border border-gray-600 hover:border-red-500 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
@@ -2013,7 +2093,12 @@ const Reports = () => {
                         <div className="flex justify-between items-center p-2 bg-orange-500 bg-opacity-20 rounded-lg border border-orange-400 border-opacity-30">
                           <span className="text-orange-200 font-medium">المبلغ المتبقي:</span>
                           <span className="text-orange-300 font-bold text-lg">
-                            {selectedInvoice?.downPayment?.remaining || ((selectedInvoice?.total || 0) - (selectedInvoice?.downPayment?.amount || 0))} جنيه
+                            {(() => {
+                              const total = selectedInvoice?.total || 0;
+                              const downPaymentAmount = selectedInvoice?.downPayment?.amount || 0;
+                              const remaining = selectedInvoice?.downPayment?.remaining || (total - downPaymentAmount);
+                              return remaining.toFixed(2);
+                            })()} جنيه
                           </span>
                         </div>
                         <div className="text-center mt-3">
@@ -2058,7 +2143,7 @@ const Reports = () => {
                   <tbody>
                     {selectedInvoice?.items?.map((item, index) => (
                       <tr key={index} className="border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition-colors">
-                        <td className="py-2 px-2 text-white font-medium text-xs">{item.name}</td>
+                        <td className="py-2 px-2 text-white font-medium text-xs">{emojiManager.getProductEmoji(item)} {item.name}</td>
                         <td className="py-2 px-2 text-purple-200 text-xs">
                           <span className="bg-purple-500 bg-opacity-20 px-2 py-1 rounded-full text-xs">
                             {item.category || 'غير محدد'}
@@ -2159,6 +2244,7 @@ const Reports = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    soundManager.play('update');
                     editInvoice(selectedInvoice?.id);
                   }}
                   className="btn-primary flex items-center justify-center px-3 py-2 hover:scale-105 transition-all duration-200 min-h-[40px] cursor-pointer text-sm"
@@ -2175,6 +2261,7 @@ const Reports = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    soundManager.play('print');
                     reprintInvoice(selectedInvoice);
                   }}
                   className="btn-primary bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-3 rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[50px] cursor-pointer"
@@ -2192,6 +2279,7 @@ const Reports = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      soundManager.play('cash');
                       payRemainingAmount(selectedInvoice?.id);
                     }}
                     className="btn-primary bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[50px] cursor-pointer"
@@ -2209,6 +2297,7 @@ const Reports = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    soundManager.play('refund');
                     processReturn(selectedInvoice?.id);
                   }}
                   className="btn-primary bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-2 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[40px] cursor-pointer text-sm"
@@ -2225,6 +2314,7 @@ const Reports = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    soundManager.play('delete');
                     deleteInvoice(selectedInvoice?.id);
                   }}
                   className="btn-primary bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-2 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[40px] cursor-pointer text-sm"
@@ -2245,6 +2335,7 @@ const Reports = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    soundManager.play('closeWindow');
                     closeInvoiceModal();
                   }}
                   className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-xl transition-all duration-200 flex items-center min-h-[40px] cursor-pointer"
