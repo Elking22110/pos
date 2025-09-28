@@ -33,6 +33,7 @@ class DatabaseManager {
 
   // إنشاء جداول البيانات
   createStores(db) {
+    console.log('إنشاء جداول قاعدة البيانات...');
     // جدول المنتجات
     if (!db.objectStoreNames.contains('products')) {
       const productsStore = db.createObjectStore('products', { keyPath: 'id' });
@@ -94,6 +95,23 @@ class DatabaseManager {
       const backupsStore = db.createObjectStore('backups', { keyPath: 'id' });
       backupsStore.createIndex('date', 'date', { unique: false });
       backupsStore.createIndex('type', 'type', { unique: false });
+    }
+    console.log('تم إنشاء جميع جداول قاعدة البيانات بنجاح');
+  }
+
+  // إنشاء الجداول المفقودة
+  async ensureStoresExist() {
+    if (!this.db) {
+      await this.init();
+    }
+
+    const requiredStores = ['products', 'categories', 'customers', 'sales', 'shifts', 'returns', 'users', 'settings', 'backups'];
+    const missingStores = requiredStores.filter(storeName => !this.db.objectStoreNames.contains(storeName));
+    
+    if (missingStores.length > 0) {
+      console.log('جداول مفقودة:', missingStores);
+      // إعادة تهيئة قاعدة البيانات لإنشاء الجداول المفقودة
+      await this.init();
     }
   }
 
@@ -354,10 +372,31 @@ class DatabaseManager {
   // استيراد البيانات
   async importData(data) {
     try {
+      // التأكد من تهيئة قاعدة البيانات
+      if (!this.db) {
+        await this.init();
+      }
+
+      // التأكد من وجود جميع الجداول المطلوبة
+      await this.ensureStoresExist();
+
       for (const [storeName, items] of Object.entries(data)) {
+        // التحقق من وجود الجدول قبل محاولة الوصول إليه
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          console.warn(`الجدول ${storeName} غير موجود، سيتم تخطيه`);
+          continue;
+        }
+
         if (items && items.length > 0) {
           const transaction = this.db.transaction([storeName], 'readwrite');
           const store = transaction.objectStore(storeName);
+          
+          // مسح البيانات الموجودة أولاً
+          await new Promise((resolve, reject) => {
+            const clearRequest = store.clear();
+            clearRequest.onsuccess = () => resolve();
+            clearRequest.onerror = () => reject(clearRequest.error);
+          });
           
           for (const item of items) {
             await new Promise((resolve, reject) => {

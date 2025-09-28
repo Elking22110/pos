@@ -120,6 +120,9 @@ class BackupManager {
     try {
       this.isBackingUp = true;
       
+      // التأكد من تهيئة قاعدة البيانات أولاً
+      await databaseManager.init();
+      
       const backup = await databaseManager.createBackup(type);
       
       // تشفير النسخة الاحتياطية
@@ -146,6 +149,9 @@ class BackupManager {
   // استعادة نسخة احتياطية
   async restoreBackup(backupId) {
     try {
+      // التأكد من تهيئة قاعدة البيانات أولاً
+      await databaseManager.init();
+      
       const backup = await databaseManager.get('backups', backupId);
       if (!backup) {
         throw new Error('النسخة الاحتياطية غير موجودة');
@@ -155,7 +161,17 @@ class BackupManager {
       
       // فك تشفير النسخة الاحتياطية إذا كانت مشفرة
       if (backup.encrypted && backup.encryptedData) {
-        backupData = encryptionManager.decryptObject(backup.encryptedData);
+        try {
+          backupData = encryptionManager.decryptObject(backup.encryptedData);
+        } catch (decryptError) {
+          console.error('خطأ في فك تشفير النسخة الاحتياطية:', decryptError);
+          throw new Error('فشل في فك تشفير النسخة الاحتياطية');
+        }
+      }
+
+      // التحقق من صحة بيانات النسخة الاحتياطية
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error('بيانات النسخة الاحتياطية غير صحيحة');
       }
 
       // استعادة البيانات

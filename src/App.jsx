@@ -27,6 +27,7 @@ function App() {
     const initDatabase = async () => {
       try {
         await databaseManager.init();
+        await databaseManager.ensureStoresExist();
         console.log('✅ تم تهيئة قاعدة البيانات بنجاح');
       } catch (error) {
         console.error('❌ خطأ في تهيئة قاعدة البيانات:', error);
