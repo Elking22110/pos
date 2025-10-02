@@ -566,7 +566,7 @@ const Products = () => {
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">قيمة المخزون</p>
                 <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">
-                  ${products.reduce((total, p) => total + (p.price * p.stock), 0).toLocaleString('ar-SA')}
+                  ${products.reduce((total, p) => total + (p.price * p.stock), 0).toLocaleString('en-US')}
                 </p>
                 <div className="flex items-center text-xs">
                   <span className="text-green-300 font-medium">قيمة المخزون</span>

@@ -15,7 +15,8 @@ import {
   Trash2
 } from 'lucide-react';
 import soundManager from '../utils/soundManager.js';
-import { formatDate, formatTimeOnly, formatDateOnly, getCurrentDate } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatDateOnly, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
+import { getNextShiftId } from '../utils/sequence.js';
 
 const ShiftManager = () => {
   const [shifts, setShifts] = useState([]);
@@ -68,7 +69,7 @@ const ShiftManager = () => {
   // بدء وردية جديدة
   const startShift = async () => {
     const now = new Date();
-    const shiftId = `shift_${now.getTime()}`;
+    const shiftId = getNextShiftId();
     
     const newShift = {
       id: shiftId,

@@ -30,6 +30,7 @@ import thermalPrinterManager from '../utils/thermalPrinter.js';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
 import { formatDate, formatTimeOnly, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
+import { getNextInvoiceId } from '../utils/sequence.js';
 
 const POS = () => {
   const { notifySuccess, notifyError } = useNotifications();
@@ -320,7 +321,7 @@ const POS = () => {
         return;
       }
     
-    const invoiceId = `INV-${Date.now()}`;
+    const invoiceId = getNextInvoiceId();
     const sale = {
       id: invoiceId,
       customer: customerInfo,
@@ -1511,7 +1512,7 @@ Elking Store - نظام إدارة متطور
                 {/* المجموع وأزرار العمل */}
                 <div className="mt-3 border-t border-white border-opacity-10 pt-3">
                   <div className="space-y-1 mb-2">
-                    <div className="flex justify-between text-xs"><span className="text-blue-200">المجموع الفرعي</span><span className="text-white">{getSubtotal().toFixed(2)} جنيه</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-gray-300">المجموع الفرعي</span><span className="text-white">{getSubtotal().toFixed(2)} جنيه</span></div>
                     {getDiscountAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-green-200">الخصم</span><span className="text-green-300">-{getDiscountAmount().toFixed(2)} جنيه</span></div>)}
                     {taxes.enabled && getTaxAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-orange-200">{taxes.name} ({taxes.vat}%)</span><span className="text-orange-300">{getTaxAmount().toFixed(2)} جنيه</span></div>)}
                     {downPayment.enabled && getDownPaymentAmount() > 0 && (<div className="flex justify-between text-xs"><span className="text-yellow-200">العربون</span><span className="text-yellow-300">{getDownPaymentAmount().toFixed(2)} جنيه</span></div>)}
@@ -1601,7 +1602,7 @@ Elking Store - نظام إدارة متطور
             </div>
 
             {/* تفاصيل الدفع */}
-            <div className="bg-white bg-opacity-5 rounded-xl p-4 mb-6">
+                <div className="bg-white bg-opacity-5 rounded-xl p-4 mb-6">
               <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
                 <CreditCard className="h-5 w-5 mr-2 text-emerald-400" />
                 تفاصيل الدفع
@@ -1620,7 +1621,7 @@ Elking Store - نظام إدارة متطور
                 {taxes.enabled && getTaxAmount() > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-400">{taxes.name}:</span>
-                    <span className="text-blue-400 font-medium">{getTaxAmount().toFixed(2)} جنيه</span>
+                    <span className="text-orange-300 font-medium">{getTaxAmount().toFixed(2)} جنيه</span>
                   </div>
                 )}
                 {getDownPaymentAmount() > 0 && (
@@ -1631,7 +1632,7 @@ Elking Store - نظام إدارة متطور
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">المبلغ المتبقي:</span>
-                      <span className="text-cyan-400 font-medium">{getRemainingAmount().toFixed(2)} جنيه</span>
+                      <span className="text-yellow-300 font-medium">{getRemainingAmount().toFixed(2)} جنيه</span>
                     </div>
                   </>
                 )}

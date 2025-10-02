@@ -230,7 +230,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي المبيعات</p>
-                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">${stats.totalSales.toLocaleString('ar-SA')}</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">${stats.totalSales.toLocaleString('en-US')}</p>
                 <div className="flex items-center text-xs">
                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
                   <span className="text-green-400 font-semibold">+12.5%</span>
@@ -247,7 +247,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">
                 <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">إجمالي الطلبات</p>
-                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalOrders.toLocaleString('ar-SA')}</p>
+                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{stats.totalOrders.toLocaleString('en-US')}</p>
                 <div className="flex items-center text-xs">
                   <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-400 mr-1 md:mr-2" />
                   <span className="text-green-400 font-semibold">+8.2%</span>

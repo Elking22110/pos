@@ -40,7 +40,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     minify: 'esbuild',
-    target: 'es2015',
+    target: 'esnext',
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html')
@@ -148,7 +148,7 @@ export default defineConfig({
 
   // إعدادات الأداء
   esbuild: {
-    target: 'es2015',
+    target: 'esnext',
     minifyIdentifiers: true,
     minifySyntax: true,
     minifyWhitespace: true

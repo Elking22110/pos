@@ -39,7 +39,7 @@ const Sidebar = () => {
   });
 
   return (
-        <div className="w-64 md:w-72 lg:w-80 xl:w-84 text-white flex flex-col shadow-2xl relative overflow-hidden flex-shrink-0 h-screen nav-enhanced">
+        <div className="w-64 md:w-72 lg:w-80 xl:w-84 text-white flex flex-col shadow-2xl relative overflow-y-auto flex-shrink-0 h-screen nav-enhanced pb-4">
       
       {/* Header */}
       <div className="p-6 border-b border-purple-500 border-opacity-20 relative z-10">
@@ -102,17 +102,19 @@ const Sidebar = () => {
 
 
       {/* User Profile Section */}
-      {user && (
+      {(
         <div className="p-4 border-t border-purple-500 border-opacity-20 relative z-10">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-white">{user.username}</div>
-              <div className="text-xs text-purple-200">
-                {user.role === 'admin' ? 'مدير عام' : user.role === 'manager' ? 'مدير' : 'كاشير'}
-              </div>
+              <div className="text-sm font-semibold text-white">{user ? user.username : 'غير مسجل'}</div>
+              {user && (
+                <div className="text-xs text-purple-200">
+                  {user.role === 'admin' ? 'مدير عام' : user.role === 'manager' ? 'مدير' : 'كاشير'}
+                </div>
+              )}
             </div>
           </div>
           
@@ -131,8 +133,9 @@ const Sidebar = () => {
             </Link>
             
             <button
-              onClick={() => { soundManager.play('logout'); logout(); }}
-              className="w-full flex items-center p-3 rounded-lg text-gray-200 hover:bg-red-500 hover:bg-opacity-10 hover:text-red-300"
+              onClick={() => { if (user) { soundManager.play('logout'); logout(); } }}
+              className={`w-full flex items-center p-3 rounded-lg ${user ? 'text-gray-200 hover:bg-red-500 hover:bg-opacity-10 hover:text-red-300' : 'text-gray-500 cursor-not-allowed opacity-50'}`}
+              disabled={!user}
             >
               <LogOut className="h-4 w-4 mr-3" />
               <span className="text-sm font-medium">تسجيل الخروج</span>

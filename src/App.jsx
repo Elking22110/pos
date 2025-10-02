@@ -103,7 +103,19 @@ function App() {
     };
     
     initDatabase();
-    resetUsers();
+    // لا تُعدِّ ضبط المستخدمين إذا كانت بياناتهم موجودة بالفعل
+    try {
+      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      if (!Array.isArray(existingUsers) || existingUsers.length === 0) {
+        resetUsers();
+      } else {
+        console.log('✅ تم العثور على مستخدمين محفوظين - لن يتم إعادة تعيينهم');
+      }
+    } catch (e) {
+      // في حال كانت البيانات تالفة، نعيد ضبطها مرة واحدة
+      console.warn('⚠️ بيانات المستخدمين تالفة - سيتم إعادة تعيينها');
+      resetUsers();
+    }
     
     // تهيئة مراقب التخزين
     StorageMonitor.init();

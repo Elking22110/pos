@@ -1693,7 +1693,7 @@ const Reports = () => {
                         <div className="text-right">
                           <div className="font-bold text-lg">{item.total} جنيه</div>
                           {item.downPayment && item.downPayment.enabled && (
-                            <div className="text-xs text-blue-300">
+                            <div className="text-xs text-gray-300">
                               مدفوع: {item.downPayment.amount} جنيه
                             </div>
                           )}
@@ -2005,7 +2005,7 @@ const Reports = () => {
                   {selectedInvoice?.downPayment && selectedInvoice.downPayment.enabled && (
                     <div className="mt-2">
                       <span className="text-orange-300 text-xs bg-orange-500 bg-opacity-20 px-2 py-1 rounded-full border border-orange-400 border-opacity-30">
-                        فاتورة غير مكتملة الدفع
+                        فاتورة بعربون
                       </span>
                     </div>
                   )}
@@ -2074,25 +2074,25 @@ const Reports = () => {
                   
                   {/* تفاصيل العربون */}
                   {selectedInvoice?.downPayment && selectedInvoice.downPayment.enabled && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-blue-500 to-cyan-500 bg-opacity-20 rounded-xl border-2 border-blue-400 border-opacity-40">
+                    <div className="mt-4 p-4 bg-white bg-opacity-5 rounded-xl border border-white border-opacity-20">
                       <div className="flex items-center mb-3">
-                        <DollarSign className="h-5 w-5 text-blue-300 mr-2" />
-                        <h5 className="text-blue-200 font-bold text-lg">تفاصيل العربون</h5>
+                        <DollarSign className="h-5 w-5 text-gray-300 mr-2" />
+                        <h5 className="text-white font-bold text-lg">تفاصيل العربون</h5>
                       </div>
                       <div className="space-y-3">
-                        <div className="flex justify-between items-center p-2 bg-blue-500 bg-opacity-10 rounded-lg">
-                          <span className="text-blue-200 font-medium">المبلغ المدفوع:</span>
-                          <span className="text-blue-100 font-bold text-lg">{selectedInvoice?.downPayment?.amount || 0} جنيه</span>
+                        <div className="flex justify-between items-center p-2 bg-white bg-opacity-10 rounded-lg">
+                          <span className="text-gray-200 font-medium">المبلغ المدفوع:</span>
+                          <span className="text-white font-bold text-lg">{selectedInvoice?.downPayment?.amount || 0} جنيه</span>
                         </div>
-                        <div className="flex justify-between items-center p-2 bg-blue-500 bg-opacity-10 rounded-lg">
-                          <span className="text-blue-200 font-medium">نوع العربون:</span>
-                          <span className="text-blue-100 font-medium">
+                        <div className="flex justify-between items-center p-2 bg-white bg-opacity-10 rounded-lg">
+                          <span className="text-gray-200 font-medium">نوع العربون:</span>
+                          <span className="text-white font-medium">
                             {selectedInvoice?.downPayment?.type === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center p-2 bg-orange-500 bg-opacity-20 rounded-lg border border-orange-400 border-opacity-30">
-                          <span className="text-orange-200 font-medium">المبلغ المتبقي:</span>
-                          <span className="text-orange-300 font-bold text-lg">
+                        <div className="flex justify-between items-center p-2 bg-white bg-opacity-10 rounded-lg border border-white border-opacity-10">
+                          <span className="text-gray-200 font-medium">المبلغ المتبقي:</span>
+                          <span className="text-white font-bold text-lg">
                             {(() => {
                               const total = selectedInvoice?.total || 0;
                               const downPaymentAmount = selectedInvoice?.downPayment?.amount || 0;
@@ -2102,8 +2102,8 @@ const Reports = () => {
                           </span>
                         </div>
                         <div className="text-center mt-3">
-                          <span className="text-blue-300 text-sm bg-blue-500 bg-opacity-20 px-3 py-1 rounded-full">
-                            فاتورة غير مكتملة الدفع
+                          <span className="text-gray-200 text-sm bg-white bg-opacity-10 px-3 py-1 rounded-full border border-white border-opacity-10">
+                            فاتورة بعربون
                           </span>
                         </div>
                       </div>
@@ -2202,25 +2202,25 @@ const Reports = () => {
                 )}
                 
                 {selectedInvoice?.taxAmount > 0 && (
-                  <div className="flex justify-between items-center py-1 bg-blue-500 bg-opacity-10 rounded-lg px-2">
-                    <span className="text-blue-200 text-sm">الضريبة:</span>
-                    <span className="text-blue-400 font-bold text-sm">{selectedInvoice.taxAmount} جنيه</span>
+                  <div className="flex justify-between items-center py-1 bg-white bg-opacity-10 rounded-lg px-2">
+                    <span className="text-gray-200 text-sm">الضريبة:</span>
+                    <span className="text-white font-bold text-sm">{selectedInvoice.taxAmount} جنيه</span>
                   </div>
                 )}
                 
                 {selectedInvoice?.downPayment && selectedInvoice.downPayment.enabled && (
-                  <div className="bg-gradient-to-r from-blue-500 to-cyan-500 bg-opacity-15 rounded-lg p-3 space-y-2 border border-blue-400 border-opacity-30">
+                  <div className="bg-white bg-opacity-5 rounded-lg p-3 space-y-2 border border-white border-opacity-10">
                     <div className="flex items-center mb-1">
-                      <DollarSign className="h-3 w-3 text-blue-300 mr-2" />
-                      <span className="text-blue-200 font-semibold text-sm">ملخص الدفع</span>
+                      <DollarSign className="h-3 w-3 text-gray-300 mr-2" />
+                      <span className="text-white font-semibold text-sm">ملخص الدفع</span>
                     </div>
-                    <div className="flex justify-between items-center p-1 bg-blue-500 bg-opacity-10 rounded-lg">
-                      <span className="text-blue-200 font-medium text-sm">العربون المدفوع:</span>
-                      <span className="text-blue-400 font-bold text-sm">{selectedInvoice.downPayment.amount} جنيه</span>
+                    <div className="flex justify-between items-center p-1 bg-white bg-opacity-10 rounded-lg">
+                      <span className="text-gray-200 font-medium text-sm">العربون المدفوع:</span>
+                      <span className="text-white font-bold text-sm">{selectedInvoice.downPayment.amount} جنيه</span>
                     </div>
-                    <div className="flex justify-between items-center p-1 bg-orange-500 bg-opacity-20 rounded-lg border border-orange-400 border-opacity-30">
+                    <div className="flex justify-between items-center p-1 bg-white bg-opacity-10 rounded-lg border border-white border-opacity-10">
                       <span className="text-orange-200 font-medium text-sm">المبلغ المتبقي:</span>
-                      <span className="text-orange-400 font-bold text-sm">
+                      <span className="text-white font-bold text-sm">
                         {selectedInvoice.downPayment.remaining || (selectedInvoice.total - selectedInvoice.downPayment.amount)} جنيه
                       </span>
                     </div>

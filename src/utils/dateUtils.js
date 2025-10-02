@@ -55,7 +55,7 @@ export const formatDate = (dateString) => {
     };
     
     const formatted = date.toLocaleDateString('en-US', options);
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ:', error);
     return dateString;
@@ -80,7 +80,7 @@ export const formatDateOnly = (dateString) => {
     };
     
     const formatted = date.toLocaleDateString('en-US', options);
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ:', error);
     return dateString;
@@ -105,7 +105,7 @@ export const formatTimeOnly = (dateString) => {
     };
     
     const formatted = date.toLocaleTimeString('en-US', options);
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     console.warn('خطأ في تنسيق الوقت:', error);
     return dateString;
@@ -133,7 +133,7 @@ export const formatDateTime = (dateString) => {
     };
     
     const formatted = date.toLocaleDateString('en-US', options);
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ والوقت:', error);
     return dateString;
@@ -158,7 +158,7 @@ export const formatShortDate = (dateString) => {
     };
     
     const formatted = date.toLocaleDateString('en-US', options);
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     console.warn('خطأ في تنسيق التاريخ القصير:', error);
     return dateString;
@@ -261,7 +261,7 @@ export const formatWeekday = (dateString) => {
     }
     
     const formatted = date.toLocaleDateString('en-US', { weekday: 'long' });
-    return translateToArabic(formatted);
+    return formatted;
   } catch (error) {
     return dateString;
   }
