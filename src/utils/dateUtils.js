@@ -170,6 +170,48 @@ export const getCurrentDate = () => {
   return new Date().toISOString();
 };
 
+// الحصول على التاريخ المحلي بتنسيق YYYY-MM-DD
+export const getLocalDateString = () => {
+  const now = new Date();
+  return now.getFullYear() + '-' + 
+         String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(now.getDate()).padStart(2, '0');
+};
+
+// الحصول على التاريخ المحلي بتنسيق DD/MM/YYYY
+export const getLocalDateFormatted = () => {
+  const now = new Date();
+  return String(now.getDate()).padStart(2, '0') + '/' + 
+         String(now.getMonth() + 1).padStart(2, '0') + '/' + 
+         now.getFullYear();
+};
+
+// تحويل التاريخ من YYYY-MM-DD إلى DD/MM/YYYY
+export const formatDateToDDMMYYYY = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    const [year, month, day] = dateString.split('-');
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+  } catch (error) {
+    console.warn('خطأ في تحويل التاريخ:', error);
+    return dateString;
+  }
+};
+
+// تحويل التاريخ من DD/MM/YYYY إلى YYYY-MM-DD
+export const formatDateToYYYYMMDD = (dateString) => {
+  if (!dateString) return '';
+  
+  try {
+    const [day, month, year] = dateString.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  } catch (error) {
+    console.warn('خطأ في تحويل التاريخ:', error);
+    return dateString;
+  }
+};
+
 // الحصول على التاريخ الحالي بتنسيق عربي
 export const getCurrentDateFormatted = () => {
   return formatDate(getCurrentDate());

@@ -179,6 +179,14 @@ const ShiftManager = () => {
     let partialInvoices = 0;
     let refundInvoices = 0;
     let discountInvoices = 0;
+    
+    // تقسيم المبالغ حسب طرق الدفع
+    const paymentMethods = {
+      'نقدي': { received: 0, remaining: 0, count: 0 },
+      'محفظة إلكترونية': { received: 0, remaining: 0, count: 0 },
+      'انستا باي': { received: 0, remaining: 0, count: 0 },
+      'مرتجع': { received: 0, remaining: 0, count: 0 }
+    };
 
     (sales || []).forEach(sale => {
       // إجمالي المبيعات (دائماً المبلغ الأصلي قبل الخصم)
@@ -189,10 +197,22 @@ const ShiftManager = () => {
         // المرتجعات: المبلغ الإجمالي سالب
         totalRefunds += sale.total;
         refundInvoices++;
+        
+        // إضافة للمرتبعات
+        if (paymentMethods['مرتجع']) {
+          paymentMethods['مرتجع'].received += sale.total;
+          paymentMethods['مرتجع'].count++;
+        }
       } else {
         // فاتورة عادية أو بخصم
         let hasDiscount = sale.discount && sale.discount.amount > 0;
         let hasDownPayment = sale.downPayment && sale.downPayment.enabled;
+        const paymentMethod = sale.paymentMethod || 'نقدي';
+        
+        // التأكد من وجود طريقة الدفع في القائمة
+        if (!paymentMethods[paymentMethod]) {
+          paymentMethods[paymentMethod] = { received: 0, remaining: 0, count: 0 };
+        }
         
         // حساب الخصومات
         if (hasDiscount) {
@@ -203,16 +223,36 @@ const ShiftManager = () => {
         // حساب المبلغ المستلم والمتبقي
         if (hasDownPayment) {
           // فاتورة بعربون
-          totalReceived += sale.downPayment.amount;
-          totalRemaining += (sale.downPayment.remaining || (sale.total - sale.downPayment.amount));
+          const receivedAmount = sale.downPayment.amount;
+          const remainingAmount = sale.downPayment.remaining || (sale.total - sale.downPayment.amount);
+          
+          totalReceived += receivedAmount;
+          totalRemaining += remainingAmount;
           partialInvoices++;
+          
+          // تقسيم حسب طريقة الدفع
+          paymentMethods[paymentMethod].received += receivedAmount;
+          paymentMethods[paymentMethod].remaining += remainingAmount;
+          paymentMethods[paymentMethod].count++;
         } else {
           // فاتورة مكتملة
           totalReceived += sale.total;
           completeInvoices++;
+          
+          // تقسيم حسب طريقة الدفع
+          paymentMethods[paymentMethod].received += sale.total;
+          paymentMethods[paymentMethod].count++;
         }
       }
     });
+
+    // تنظيف طرق الدفع الفارغة
+    const activePaymentMethods = Object.entries(paymentMethods)
+      .filter(([method, data]) => data.received > 0 || data.remaining > 0 || data.count > 0)
+      .reduce((acc, [method, data]) => {
+        acc[method] = data;
+        return acc;
+      }, {});
 
     return {
       totalSales,
@@ -224,7 +264,8 @@ const ShiftManager = () => {
       partialInvoices,
       refundInvoices,
       discountInvoices,
-      totalInvoices: (sales || []).length
+      totalInvoices: (sales || []).length,
+      paymentMethods: activePaymentMethods
     };
   };
 
@@ -667,6 +708,75 @@ const ShiftManager = () => {
                 </tr>
               </table>
             </div>
+
+            ${Object.keys(salesDetails.paymentMethods || {}).length > 0 ? `
+            <div class="details-section">
+              <h2>💳 تقسيم المبالغ حسب طرق الدفع</h2>
+              <table class="details-table">
+                <thead>
+                  <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <th style="padding: 15px; text-align: right; font-weight: 600;">طريقة الدفع</th>
+                    <th style="padding: 15px; text-align: center; font-weight: 600;">المبلغ المستلم</th>
+                    <th style="padding: 15px; text-align: center; font-weight: 600;">المبلغ المتبقي</th>
+                    <th style="padding: 15px; text-align: center; font-weight: 600;">عدد الفواتير</th>
+                    <th style="padding: 15px; text-align: center; font-weight: 600;">الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.entries(salesDetails.paymentMethods || {}).map(([method, data]) => {
+                    const total = data.received + data.remaining;
+                    const methodIcon = method === 'نقدي' ? '💵' : 
+                                     method === 'محفظة إلكترونية' ? '📱' : 
+                                     method === 'انستا باي' ? '💳' : 
+                                     method === 'مرتجع' ? '🔄' : '💰';
+                    const methodColor = method === 'نقدي' ? '#38a169' : 
+                                      method === 'محفظة إلكترونية' ? '#3182ce' : 
+                                      method === 'انستا باي' ? '#9f7aea' : 
+                                      method === 'مرتجع' ? '#e53e3e' : '#666';
+                    
+                    return `
+                      <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px; font-weight: 600; color: ${methodColor};">
+                          ${methodIcon} ${method}
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-weight: 600; color: #38a169;">
+                          ${data.received.toFixed(2)} جنيه
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-weight: 600; color: #d69e2e;">
+                          ${data.remaining.toFixed(2)} جنيه
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-weight: 600; color: #3182ce;">
+                          ${data.count} فاتورة
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-weight: 700; color: ${methodColor}; background: ${methodColor}15; border-radius: 8px;">
+                          ${total.toFixed(2)} جنيه
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+                <tfoot>
+                  <tr style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #0ea5e9;">
+                    <td style="padding: 15px; font-weight: 700; color: #0ea5e9; font-size: 16px;">
+                      📊 المجموع الكلي
+                    </td>
+                    <td style="padding: 15px; text-align: center; font-weight: 700; color: #38a169; font-size: 16px;">
+                      ${salesDetails.totalReceived.toFixed(2)} جنيه
+                    </td>
+                    <td style="padding: 15px; text-align: center; font-weight: 700; color: #d69e2e; font-size: 16px;">
+                      ${salesDetails.totalRemaining.toFixed(2)} جنيه
+                    </td>
+                    <td style="padding: 15px; text-align: center; font-weight: 700; color: #3182ce; font-size: 16px;">
+                      ${salesDetails.totalInvoices} فاتورة
+                    </td>
+                    <td style="padding: 15px; text-align: center; font-weight: 700; color: #0ea5e9; font-size: 18px; background: #0ea5e920; border-radius: 8px;">
+                      ${(salesDetails.totalReceived + salesDetails.totalRemaining).toFixed(2)} جنيه
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            ` : ''}
 
             <div class="details-section">
               <h2>🧮 التحقق من الحسابات</h2>

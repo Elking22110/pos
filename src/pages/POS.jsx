@@ -29,7 +29,7 @@ import backupManager from '../utils/backupManager.js';
 import thermalPrinterManager from '../utils/thermalPrinter.js';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
-import { formatDate, formatTimeOnly, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatDateTime, getCurrentDate, getLocalDateString, getLocalDateFormatted, formatDateToDDMMYYYY } from '../utils/dateUtils.js';
 import { getNextInvoiceId } from '../utils/sequence.js';
 
 const POS = () => {
@@ -44,8 +44,10 @@ const POS = () => {
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '' });
   const [downPayment, setDownPayment] = useState({
     enabled: false,
-    amount: ''
+    amount: '',
+    deliveryDate: getLocalDateString()
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [discounts, setDiscounts] = useState({
     percentage: '',
     fixed: '',
@@ -320,6 +322,24 @@ const POS = () => {
         notifyError('مخزون غير كافي', 'بعض المنتجات لا تحتوي على مخزون كافي');
         return;
       }
+
+      // التحقق من صحة العربون
+      if (downPayment.enabled) {
+        if (!downPayment.amount || parseFloat(downPayment.amount) <= 0) {
+          notifyError('خطأ في العربون', 'يرجى إدخال مبلغ العربون');
+          return;
+        }
+        
+        if (parseFloat(downPayment.amount) >= getTotal()) {
+          notifyError('خطأ في العربون', 'مبلغ العربون يجب أن يكون أقل من إجمالي الفاتورة');
+          return;
+        }
+        
+        if (!downPayment.deliveryDate) {
+          notifyError('خطأ في التاريخ', 'يرجى اختيار تاريخ الاستلام');
+          return;
+        }
+      }
     
     const invoiceId = getNextInvoiceId();
     const sale = {
@@ -340,11 +360,14 @@ const POS = () => {
       downPayment: downPayment.enabled ? {
         enabled: true,
         amount: getDownPaymentAmount(),
-        remaining: getRemainingAmount()
+        remaining: getRemainingAmount(),
+        deliveryDate: downPayment.deliveryDate
       } : null
     };
     
     console.log('تم البيع:', sale);
+    console.log('تفاصيل العربون:', sale.downPayment);
+    console.log('تاريخ الاستلام:', sale.downPayment?.deliveryDate);
     
     // تشفير البيانات الحساسة
     const encryptedSale = encryptionManager.encryptSensitiveData(sale, ['customer']);
@@ -460,6 +483,7 @@ const POS = () => {
         invoiceId: invoiceId || `INV-${Date.now()}`, // استخدام رقم الفاتورة الممرر أو إنشاء جديد
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
+        deliveryDate: downPayment.enabled && downPayment.deliveryDate ? formatDateToDDMMYYYY(downPayment.deliveryDate) : null,
         items: cart.map(item => ({
           name: item.name,
           quantity: item.quantity,
@@ -516,29 +540,34 @@ ${receiptData.customerPhone ? `   الهاتف: ${receiptData.customerPhone}` : 
 
 ${'─'.repeat(40)}
 
-🛍️ المنتجات:
+المنتجات:
+   الوصف                    الكمية   السعر       الإجمالي
+   ------------------------------------------
 ${receiptData.items.map((item, index) => {
-  const itemName = item.name.length > 22 ? item.name.substring(0, 22) + '...' : item.name;
-  const itemTotal = (item.price * item.quantity).toFixed(2);
-  return `   ${(index + 1).toString().padStart(2, ' ')}. ${itemName.padEnd(25, ' ')} ${item.quantity.toString().padStart(2, ' ')} × ${item.price.toFixed(2).padStart(6, ' ')} = ${itemTotal.padStart(8, ' ')} جنيه`;
+  const itemName = item.name.length > 24 ? item.name.substring(0, 24) + '...' : item.name;
+  const quantity = item.quantity.toString().padStart(3, ' ');
+  const unitPrice = item.price.toFixed(2).padStart(8, ' ');
+  const itemTotal = (item.price * item.quantity).toFixed(2).padStart(10, ' ');
+  return `   ${itemName.padEnd(24, ' ')} ${quantity}  × ${unitPrice}  = ${itemTotal} جنيه`;
 }).join('\n')}
 
 ${'─'.repeat(40)}
 
-💰 ملخص الفاتورة:
-   المجموع الفرعي: ${receiptData.subtotal.toFixed(2).padStart(17, ' ')} جنيه
-${receiptData.discount > 0 ? `   الخصم: ${(-receiptData.discount).toFixed(2).padStart(22, ' ')} جنيه` : ''}
-${taxes.enabled && receiptData.tax > 0 ? `   ${taxes.name} (${taxes.vat}%): ${receiptData.tax.toFixed(2).padStart(12, ' ')} جنيه` : ''}
+ملخص الفاتورة:
+   المجموع الفرعي:        ${receiptData.subtotal.toFixed(2).padStart(12, ' ')} جنيه
+${receiptData.discount > 0 ? `   الخصم:                 ${(-receiptData.discount).toFixed(2).padStart(12, ' ')} جنيه` : ''}
+${taxes.enabled && receiptData.tax > 0 ? `   ${taxes.name} (${taxes.vat}%):   ${receiptData.tax.toFixed(2).padStart(12, ' ')} جنيه` : ''}
 
-${'═'.repeat(40)}
+${'═'.repeat(48)}
 
-   الإجمالي: ${receiptData.total.toFixed(2).padStart(22, ' ')} جنيه
-${receiptData.downPayment > 0 ? `   العربون: ${receiptData.downPayment.toFixed(2).padStart(20, ' ')} جنيه` : ''}
-${receiptData.downPayment > 0 ? `   المبلغ المتبقي: ${receiptData.remaining.toFixed(2).padStart(15, ' ')} جنيه` : ''}
+   الإجمالي:               ${receiptData.total.toFixed(2).padStart(12, ' ')} جنيه
+${receiptData.downPayment > 0 ? `   العربون:               ${receiptData.downPayment.toFixed(2).padStart(12, ' ')} جنيه` : ''}
+${receiptData.downPayment > 0 ? `   المبلغ المتبقي:        ${receiptData.remaining.toFixed(2).padStart(12, ' ')} جنيه` : ''}
+${receiptData.deliveryDate ? `   تاريخ الاستلام:        ${receiptData.deliveryDate.padStart(12, ' ')}` : ''}
 
 ${'─'.repeat(40)}
 
-💳 طريقة الدفع: ${receiptData.paymentMethod}
+طريقة الدفع: ${receiptData.paymentMethod}
 
 ${'═'.repeat(40)}
 
@@ -570,15 +599,17 @@ Elking Store - نظام إدارة متطور
                 font-family: 'Courier New', 'Monaco', monospace; 
                 direction: rtl; 
                 text-align: right; 
-                padding: 20px; 
-                font-size: 14px;
-                line-height: 1.4;
+                padding: 10px; 
+                font-size: 13px;
+                line-height: 1.35;
                 background: #f8f9fa;
                 color: #333;
+                width: 80mm;
+                margin: 0 auto;
               }
               
               .receipt-container {
-                max-width: 400px;
+                width: 80mm;
                 margin: 0 auto;
                 background: white;
                 border-radius: 8px;
@@ -629,18 +660,21 @@ Elking Store - نظام إدارة متطور
                 line-height: 1.3;
                 margin: 0;
                 font-family: 'Courier New', monospace;
+                word-break: break-word;
               }
               
               @media print {
+                @page { size: 80mm auto; margin: 0; }
                 body { 
                   background: white; 
                   padding: 0; 
                   margin: 0;
+                  width: 80mm;
                 }
                 .receipt-container {
                   box-shadow: none;
                   border-radius: 0;
-                  max-width: none;
+                  width: 80mm;
                 }
                 .receipt-header {
                   background: #333 !important;
@@ -781,6 +815,12 @@ Elking Store - نظام إدارة متطور
         setTheme(savedTheme);
         document.documentElement.setAttribute('data-theme', savedTheme);
         
+        // تحديث تاريخ الاستلام إلى اليوم الحالي
+        setDownPayment(prev => ({
+          ...prev,
+          deliveryDate: getLocalDateString()
+        }));
+        
         // تحميل الوردية النشطة من localStorage
         try {
           console.log('🔍 بدء البحث عن الوردية النشطة...');
@@ -909,6 +949,36 @@ Elking Store - نظام إدارة متطور
       window.removeEventListener('shiftEnded', handleShiftEnded);
     };
   }, []);
+
+  // تحديث تاريخ الاستلام كل يوم
+  useEffect(() => {
+    const updateDeliveryDate = () => {
+      setDownPayment(prev => ({
+        ...prev,
+        deliveryDate: getLocalDateString()
+      }));
+    };
+
+    // تحديث فوري
+    updateDeliveryDate();
+
+    // تحديث كل ساعة للتأكد من صحة التاريخ
+    const interval = setInterval(updateDeliveryDate, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // إغلاق التقويم عند النقر خارجه
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDatePicker && !event.target.closest('.date-picker-container')) {
+        setShowDatePicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDatePicker]);
 
   // مراقبة تغييرات الفئات والمنتجات والورديات في localStorage
   useEffect(() => {
@@ -1438,7 +1508,19 @@ Elking Store - نظام إدارة متطور
                           e.preventDefault();
                           e.stopPropagation();
                           soundManager.play('downPayment');
-                          setDownPayment({ ...downPayment, enabled: !downPayment.enabled });
+                          const newEnabled = !downPayment.enabled;
+                          
+                          // التحقق من وجود مبلغ في العربون قبل التفعيل (فقط عند التفعيل)
+                          if (newEnabled && (!downPayment.amount || parseFloat(downPayment.amount) <= 0)) {
+                            // السماح بالتفعيل ولكن مع تحذير
+                            notifyError('تحذير', 'يرجى إدخال مبلغ العربون بعد التفعيل');
+                          }
+                          
+                          setDownPayment({ 
+                            ...downPayment, 
+                            enabled: newEnabled,
+                            deliveryDate: newEnabled ? getLocalDateString() : downPayment.deliveryDate
+                          });
                         }}
                         className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${downPayment.enabled ? 'bg-green-500' : 'bg-gray-500'}`}
                         style={{ 
@@ -1451,11 +1533,17 @@ Elking Store - نظام إدارة متطور
             </button>
                     </div>
                     {downPayment.enabled && (
-                      <div>
-                        <label className="block text-[11px] text-blue-200 mb-1">مبلغ العربون (جنيه)</label>
-                        <input
-                          type="number"
-                          value={downPayment.amount}
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[11px] text-blue-200 mb-1">
+                            مبلغ العربون (جنيه)
+                            {(!downPayment.amount || parseFloat(downPayment.amount) <= 0) && (
+                              <span className="text-red-400 text-xs block">⚠️ يرجى إدخال مبلغ العربون</span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            value={downPayment.amount}
             onChange={(e) => {
               const value = e.target.value;
               soundManager.play('downPayment');
@@ -1464,15 +1552,284 @@ Elking Store - نظام إدارة متطور
                 amount: value === '' ? '' : parseFloat(value) || ''
               });
             }}
-                          className="input-modern w-full px-2 py-1.5 text-xs text-right"
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                          style={{ 
-                            WebkitAppearance: 'none',
-                            MozAppearance: 'textfield'
-                          }}
-                        />
+                            className={`input-modern w-full px-2 py-1.5 text-xs text-right ${
+                              (!downPayment.amount || parseFloat(downPayment.amount) <= 0) 
+                                ? 'border-red-500 bg-red-900 bg-opacity-20' 
+                                : ''
+                            }`}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            style={{ 
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'textfield'
+                            }}
+                          />
+                        </div>
+                        
+                        {/* أزرار سريعة لمبلغ العربون */}
+                        {downPayment.enabled && (
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const total = getTotal();
+                                const quarter = (total * 0.25).toFixed(2);
+                                setDownPayment({ ...downPayment, amount: quarter });
+                              }}
+                              className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
+                            >
+                              25%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const total = getTotal();
+                                const half = (total * 0.5).toFixed(2);
+                                setDownPayment({ ...downPayment, amount: half });
+                              }}
+                              className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                            >
+                              50%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const total = getTotal();
+                                const threeQuarter = (total * 0.75).toFixed(2);
+                                setDownPayment({ ...downPayment, amount: threeQuarter });
+                              }}
+                              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded"
+                            >
+                              75%
+                            </button>
+                          </div>
+                        )}
+                        
+                        <div className="date-picker-container relative">
+                          <label className="block text-[11px] text-blue-200 mb-1">
+                            تاريخ الاستلام
+                            <span className="text-xs text-gray-400 block">(اليوم: {getLocalDateFormatted()})</span>
+                          </label>
+                          <div className="flex gap-1">
+                            <input
+                              type="number"
+                              placeholder="يوم"
+                              min="1"
+                              max="31"
+                              value={downPayment.deliveryDate ? parseInt(downPayment.deliveryDate.split('-')[2]) : ''}
+                              onChange={(e) => {
+                                const day = e.target.value;
+                                if (day === '') {
+                                  return;
+                                }
+                                const dayPadded = day.padStart(2, '0');
+                                const currentDate = downPayment.deliveryDate || getLocalDateString();
+                                const [year, month] = currentDate.split('-');
+                                const newDate = `${year}-${month}-${dayPadded}`;
+                                setDownPayment({ ...downPayment, deliveryDate: newDate });
+                              }}
+                              className="input-modern w-1/3 px-2 py-1.5 text-xs text-center"
+                            />
+                            <span className="text-white text-xs flex items-center">/</span>
+                            <input
+                              type="number"
+                              placeholder="شهر"
+                              min="1"
+                              max="12"
+                              value={downPayment.deliveryDate ? parseInt(downPayment.deliveryDate.split('-')[1]) : ''}
+                              onChange={(e) => {
+                                const month = e.target.value;
+                                if (month === '') {
+                                  return;
+                                }
+                                const monthPadded = month.padStart(2, '0');
+                                const currentDate = downPayment.deliveryDate || getLocalDateString();
+                                const [year, , day] = currentDate.split('-');
+                                const newDate = `${year}-${monthPadded}-${day}`;
+                                setDownPayment({ ...downPayment, deliveryDate: newDate });
+                              }}
+                              className="input-modern w-1/3 px-2 py-1.5 text-xs text-center"
+                            />
+                            <span className="text-white text-xs flex items-center">/</span>
+                            <input
+                              type="number"
+                              placeholder="سنة"
+                              min="2025"
+                              max="2030"
+                              value={downPayment.deliveryDate ? downPayment.deliveryDate.split('-')[0] : ''}
+                              onChange={(e) => {
+                                const year = e.target.value;
+                                if (year === '') {
+                                  return;
+                                }
+                                const currentDate = downPayment.deliveryDate || getLocalDateString();
+                                const [, month, day] = currentDate.split('-');
+                                const newDate = `${year}-${month}-${day}`;
+                                setDownPayment({ ...downPayment, deliveryDate: newDate });
+                              }}
+                              className="input-modern w-1/3 px-2 py-1.5 text-xs text-center"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowDatePicker(!showDatePicker)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 rounded text-xs"
+                              title="اختيار من التقويم"
+                            >
+                              📅
+                            </button>
+                          </div>
+                          <div className="flex justify-between items-center mt-2">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const today = getLocalDateString();
+                                  setDownPayment({ ...downPayment, deliveryDate: today });
+                                }}
+                                className="text-xs text-blue-300 hover:text-blue-200 underline"
+                              >
+                                اليوم
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tomorrow = new Date();
+                                  tomorrow.setDate(tomorrow.getDate() + 1);
+                                  const tomorrowStr = tomorrow.getFullYear() + '-' + 
+                                                     String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + 
+                                                     String(tomorrow.getDate()).padStart(2, '0');
+                                  setDownPayment({ ...downPayment, deliveryDate: tomorrowStr });
+                                }}
+                                className="text-xs text-green-300 hover:text-green-200 underline"
+                              >
+                                غداً
+                              </button>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              تنسيق: يوم/شهر/سنة (ميلادي)
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* التقويم الصغير */}
+                        {showDatePicker && (
+                          <div 
+                            className="absolute z-50 bg-gray-800 border border-gray-600 rounded-lg p-3 mt-1 shadow-lg"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="text-center mb-2">
+                              <div className="flex justify-between items-center mb-2">
+                                <button
+                                  onClick={() => {
+                                    const currentDate = new Date(downPayment.deliveryDate);
+                                    currentDate.setMonth(currentDate.getMonth() - 1);
+                                    setDownPayment({ 
+                                      ...downPayment, 
+                                      deliveryDate: currentDate.toISOString().split('T')[0] 
+                                    });
+                                  }}
+                                  className="text-white hover:text-blue-300"
+                                >
+                                  ‹
+                                </button>
+                                <span className="text-white text-sm font-medium">
+                                  {new Date(downPayment.deliveryDate).toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'long' 
+                                  })}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    const currentDate = new Date(downPayment.deliveryDate);
+                                    currentDate.setMonth(currentDate.getMonth() + 1);
+                                    setDownPayment({ 
+                                      ...downPayment, 
+                                      deliveryDate: currentDate.toISOString().split('T')[0] 
+                                    });
+                                  }}
+                                  className="text-white hover:text-blue-300"
+                                >
+                                  ›
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* أيام الأسبوع */}
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                <div key={day} className="text-xs text-gray-400 text-center p-1">
+                                  {day}
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* أيام الشهر */}
+                            <div className="grid grid-cols-7 gap-1">
+                              {(() => {
+                                const currentDate = new Date(downPayment.deliveryDate);
+                                const year = currentDate.getFullYear();
+                                const month = currentDate.getMonth();
+                                const firstDay = new Date(year, month, 1);
+                                const lastDay = new Date(year, month + 1, 0);
+                                const daysInMonth = lastDay.getDate();
+                                const startingDay = firstDay.getDay(); // 0 = الأحد، 1 = الاثنين، إلخ
+                                
+                                const days = [];
+                                
+                                // أيام فارغة في البداية
+                                for (let i = 0; i < startingDay; i++) {
+                                  days.push(<div key={`empty-${i}`} className="p-1"></div>);
+                                }
+                                
+                                // أيام الشهر
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                  const isSelected = day === currentDate.getDate();
+                                  const isToday = new Date().getDate() === day && 
+                                                new Date().getMonth() === month && 
+                                                new Date().getFullYear() === year;
+                                  
+                                  days.push(
+                                    <button
+                                      key={day}
+                                      onClick={() => {
+                                        const newDate = new Date(year, month, day);
+                                        setDownPayment({ 
+                                          ...downPayment, 
+                                          deliveryDate: newDate.toISOString().split('T')[0] 
+                                        });
+                                        setShowDatePicker(false);
+                                      }}
+                                      className={`p-1 text-xs rounded hover:bg-blue-500 hover:text-white transition-colors ${
+                                        isSelected 
+                                          ? 'bg-blue-500 text-white' 
+                                          : isToday 
+                                            ? 'bg-gray-600 text-white' 
+                                            : 'text-gray-300 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      {day}
+                                    </button>
+                                  );
+                                }
+                                
+                                return days;
+                              })()}
+                            </div>
+                            
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                              <div className="text-xs text-gray-500 text-center mb-2">
+                                التقويم الميلادي
+                              </div>
+                              <button
+                                onClick={() => setShowDatePicker(false)}
+                                className="w-full text-xs text-gray-400 hover:text-white"
+                              >
+                                إغلاق
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1633,6 +1990,10 @@ Elking Store - نظام إدارة متطور
                     <div className="flex justify-between">
                       <span className="text-gray-400">المبلغ المتبقي:</span>
                       <span className="text-yellow-300 font-medium">{getRemainingAmount().toFixed(2)} جنيه</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">تاريخ الاستلام:</span>
+                      <span className="text-blue-300 font-medium">{formatDateToDDMMYYYY(downPayment.deliveryDate)}</span>
                     </div>
                   </>
                 )}

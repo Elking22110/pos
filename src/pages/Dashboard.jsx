@@ -8,12 +8,13 @@ import {
   AlertTriangle,
   BarChart3,
   PieChart,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
-import { formatDate, formatTimeOnly, formatWeekday, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
+import { formatDate, formatTimeOnly, formatWeekday, formatDateTime, getCurrentDate, getLocalDateString, getLocalDateFormatted, formatDateToDDMMYYYY } from '../utils/dateUtils.js';
 
 // مكون Tooltip مخصص لتوزيع المبيعات
 const CustomTooltip = ({ active, payload, label }) => {
@@ -39,10 +40,11 @@ const Dashboard = () => {
 
   const [recentOrders, setRecentOrders] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [deliveryNotifications, setDeliveryNotifications] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // تحليل البيانات الحقيقية
-  useEffect(() => {
-    const analyzeRealData = () => {
+  const analyzeRealData = () => {
       try {
         // تحليل المبيعات
         const sales = JSON.parse(localStorage.getItem('sales') || '[]');
@@ -65,6 +67,30 @@ const Dashboard = () => {
         // تحليل المنتجات منخفضة المخزون
         const lowStock = products.filter(p => p.stock <= p.minStock);
         
+        // تحليل طلبات الاستلام
+        const today = getLocalDateString();
+        console.log('البحث عن طلبات الاستلام لليوم:', today);
+        console.log('التاريخ المحلي الحالي:', new Date().toLocaleDateString('en-US'));
+        console.log('جميع المبيعات:', sales);
+        
+        const deliveryOrders = sales.filter(sale => {
+          const hasDownPayment = sale.downPayment && sale.downPayment.enabled;
+          const hasDeliveryDate = sale.downPayment && sale.downPayment.deliveryDate;
+          const isToday = hasDeliveryDate && sale.downPayment.deliveryDate === today;
+          
+          console.log('فحص المبيعة:', {
+            id: sale.id,
+            hasDownPayment,
+            hasDeliveryDate,
+            deliveryDate: sale.downPayment?.deliveryDate,
+            isToday
+          });
+          
+          return hasDownPayment && isToday;
+        });
+        
+        console.log('طلبات الاستلام المفلترة:', deliveryOrders);
+        
         // تحليل آخر الطلبات
         const recent = sales
           .sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp))
@@ -84,6 +110,7 @@ const Dashboard = () => {
         });
         
         setLowStockProducts(lowStock);
+        setDeliveryNotifications(deliveryOrders);
         setRecentOrders(recent);
         
         console.log('تم تحليل البيانات الحقيقية:');
@@ -93,11 +120,22 @@ const Dashboard = () => {
         console.log('- إجمالي المنتجات:', totalProducts);
         console.log('- المنتجات منخفضة المخزون:', lowStock.length);
         console.log('- آخر الطلبات:', recent.length);
+        console.log('- طلبات الاستلام اليوم:', deliveryOrders.length);
         
       } catch (error) {
         console.error('خطأ في تحليل البيانات:', error);
       }
     };
+
+  // دالة تحديث البيانات يدوياً
+  const refreshData = () => {
+    setIsRefreshing(true);
+    soundManager.play('refresh');
+    analyzeRealData();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  useEffect(() => {
     
     analyzeRealData();
     
@@ -106,9 +144,13 @@ const Dashboard = () => {
       analyzeRealData();
     };
     
+    // تحديث البيانات كل 5 ثوانٍ للتأكد من ظهور البيانات الجديدة
+    const interval = setInterval(analyzeRealData, 5000);
+    
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
+      clearInterval(interval);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
@@ -219,6 +261,14 @@ const Dashboard = () => {
             <p className="text-purple-200 text-xs md:text-sm lg:text-base xl:text-lg font-medium">مرحباً بك في نظام إدارة المتجر المتطور</p>
           </div>
           <div className="text-right">
+            <button 
+              onClick={refreshData}
+              disabled={isRefreshing}
+              className="mb-2 p-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg transition-colors"
+              title="تحديث البيانات"
+            >
+              <RefreshCw className={`h-4 w-4 text-white ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
             <div className="text-xs text-purple-300 mb-1 font-medium">آخر تحديث</div>
             <div className="text-white font-semibold text-xs md:text-sm">{formatDateTime(getCurrentDate())}</div>
           </div>
@@ -422,8 +472,62 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Low Stock Alert */}
+          {/* Delivery Notifications */}
           <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.8s'}}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">تنبيهات الاستلام</h3>
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg animate-pulse-custom">
+                <Package className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              {deliveryNotifications.length > 0 ? (
+                deliveryNotifications.map((order, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 group border border-blue-500 border-opacity-30">
+                    <div>
+                      <p className="font-semibold text-white group-hover:text-blue-200 transition-colors">
+                        {order.customer?.name || 'عميل غير محدد'}
+                      </p>
+                      <p className="text-sm text-blue-200">
+                        {order.customer?.phone || 'لا يوجد رقم هاتف'}
+                      </p>
+                      <p className="text-xs text-blue-300">
+                        فاتورة رقم: {order.id}
+                      </p>
+                      <p className="text-xs text-blue-400">
+                        تاريخ الاستلام: {formatDateToDDMMYYYY(order.downPayment?.deliveryDate)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-blue-300">
+                        عربون: {order.downPayment?.amount || 0} جنيه
+                      </p>
+                      <p className="text-sm text-yellow-300">
+                        متبقي: {(order.total - (order.downPayment?.amount || 0)).toFixed(2)} جنيه
+                      </p>
+                      <p className="text-xs text-blue-400 bg-blue-500 bg-opacity-30 px-2 py-1 rounded-full">
+                        استلام اليوم
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-400">لا توجد طلبات استلام اليوم</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    اليوم: {getLocalDateFormatted()}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    تنسيق: يوم/شهر/سنة (ميلادي)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Low Stock Alert */}
+          <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '1.0s'}}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white">تنبيهات المخزون</h3>
               <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg animate-pulse-custom">

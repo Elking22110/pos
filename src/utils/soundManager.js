@@ -81,6 +81,9 @@ class SoundManager {
     // صوت عربون
     this.sounds.downPayment = this.createChord([440, 554], 0.3, 'sine');
     
+    // صوت المرتجع
+    this.sounds.return = this.createTone(400, 0.3, 'sawtooth');
+    
     // صوت مرتجع
     this.sounds.refund = this.createTone(200, 0.4, 'sawtooth');
     

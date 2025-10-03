@@ -118,7 +118,7 @@ class ThermalPrinterManager {
   }
 
   // طباعة خط
-  async printLine(char = '-', length = 32) {
+  async printLine(char = '-', length = 48) {
     try {
       const line = char.repeat(length);
       await this.sendCommand(line + '\n');
@@ -168,7 +168,7 @@ class ThermalPrinterManager {
       }
 
       // خط فاصل
-      await this.printLine('=', 32);
+      await this.printLine('=', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // التاريخ والوقت
@@ -191,7 +191,7 @@ class ThermalPrinterManager {
       }
 
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('-', 32);
+      await this.printLine('-', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // بيانات العميل
@@ -205,24 +205,32 @@ class ThermalPrinterManager {
         await this.sendCommand(`  الهاتف: ${receiptData.customerPhone}\n`);
       }
 
+      // تاريخ الاستلام (إذا كان هناك عربون)
+      if (receiptData.deliveryDate) {
+        await this.sendCommand(`  تاريخ الاستلام: ${receiptData.deliveryDate}\n`);
+      }
+
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('-', 32);
+      await this.printLine('-', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // المنتجات
       await this.sendCommand('المنتجات:\n');
+      await this.sendCommand('الوصف                    الكمية   السعر       الإجمالي\n');
+      await this.sendCommand('------------------------------------------\n');
       for (let i = 0; i < receiptData.items.length; i++) {
         const item = receiptData.items[i];
-        const name = item.name.length > 18 ? item.name.substring(0, 18) + '...' : item.name;
+        const name = item.name.length > 24 ? item.name.substring(0, 24) + '...' : item.name;
         const quantity = item.quantity;
         const price = item.price;
         const total = price * quantity;
-        
-        await this.sendCommand(`  ${(i + 1).toString().padStart(2, ' ')}. ${name.padEnd(20, ' ')} ${quantity} × ${price.toFixed(2)} = ${total.toFixed(2)} جنيه\n`);
+
+        const line = `  ${name.padEnd(24, ' ')} ${quantity.toString().padStart(3, ' ')} × ${price.toFixed(2).padStart(8, ' ')} = ${total.toFixed(2).padStart(10, ' ')} جنيه`;
+        await this.sendCommand(line + '\n');
       }
 
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('-', 32);
+      await this.printLine('-', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // ملخص الفاتورة
@@ -240,7 +248,7 @@ class ThermalPrinterManager {
       }
 
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('=', 32);
+      await this.printLine('=', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // الإجمالي
@@ -253,14 +261,14 @@ class ThermalPrinterManager {
       }
 
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('-', 32);
+      await this.printLine('-', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // طريقة الدفع
       await this.sendCommand(`طريقة الدفع: ${receiptData.paymentMethod}\n`);
 
       await this.sendCommand('\n'); // سطر فارغ
-      await this.printLine('=', 32);
+      await this.printLine('=', 48);
       await this.sendCommand('\n'); // سطر فارغ
 
       // رسالة شكر

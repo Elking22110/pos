@@ -17,10 +17,8 @@ import {
   BarChart3,
   PieChart,
   FileText,
-  Edit,
   Trash2,
   Printer,
-  RotateCcw,
   Eye,
   CreditCard,
   Banknote,
@@ -381,29 +379,6 @@ const Reports = () => {
     };
   }, [showInvoiceModal]);
 
-  const editInvoice = (invoiceId) => {
-    try {
-      const invoice = allSales.find(sale => sale.id === invoiceId);
-      if (invoice) {
-        // حفظ الفاتورة للتعديل في localStorage
-        localStorage.setItem('editInvoice', JSON.stringify(invoice));
-        localStorage.setItem('editInvoiceId', invoiceId.toString());
-        
-        // إشعار المستخدم
-        notifySuccess('تم تحضير الفاتورة للتعديل', 'سيتم توجيهك إلى نقطة البيع');
-        
-        // تأخير صغير قبل التوجيه
-        setTimeout(() => {
-          window.location.href = '/pos?edit=true';
-        }, 1000);
-      } else {
-        notifyError('خطأ في العثور على الفاتورة', 'الفاتورة غير موجودة');
-      }
-    } catch (error) {
-      console.error('خطأ في تحضير الفاتورة للتعديل:', error);
-      notifyError('خطأ في تحضير الفاتورة', 'حدث خطأ غير متوقع');
-    }
-  };
 
   const deleteInvoice = (invoiceId) => {
     const invoice = allSales.find(sale => sale.id === invoiceId);
@@ -506,198 +481,195 @@ const Reports = () => {
     }
   };
 
-  const processReturn = (invoiceId) => {
-    const invoice = allSales.find(sale => sale.id === invoiceId);
-    if (invoice) {
-      // إنشاء نافذة تأكيد مخصصة
-      const confirmReturn = () => {
-        try {
-          // إضافة الفاتورة إلى المرتجعات
-          const returns = JSON.parse(localStorage.getItem('returns') || '[]');
-          const returnData = {
-            ...invoice,
-            returnDate: getCurrentDate(),
-            returnReason: 'مرتجعات العميل',
-            originalInvoiceId: invoiceId,
-            returnAmount: invoice.total,
-            returnItems: invoice.items.length
-          };
-          returns.push(returnData);
-          localStorage.setItem('returns', JSON.stringify(returns));
+
+
+
+  // دوال التحكم في المنتجات داخل الفاتورة
+  const increaseItemQuantity = (invoiceId, itemIndex) => {
+    try {
+      const invoice = allSales.find(sale => sale.id === invoiceId);
+      if (invoice && invoice.items[itemIndex]) {
+        const updatedInvoice = { ...invoice };
+        updatedInvoice.items[itemIndex].quantity += 1;
+        
+        // إعادة حساب المبالغ
+        updatedInvoice.subtotal = updatedInvoice.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        updatedInvoice.total = updatedInvoice.subtotal - (updatedInvoice.discountAmount || 0) + (updatedInvoice.taxAmount || 0);
+        
+        // تحديث في localStorage
+        const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
+        localStorage.setItem('sales', JSON.stringify(updatedSales));
+        
+        // تحديث البيانات المحلية
+        setAllSales(updatedSales);
+        setSelectedInvoice(updatedInvoice);
+        
+        notifySuccess('تم بنجاح', 'تم زيادة الكمية');
+      }
+    } catch (error) {
+      console.error('خطأ في زيادة الكمية:', error);
+      notifyError('خطأ', 'حدث خطأ أثناء زيادة الكمية');
+    }
+  };
+
+  const decreaseItemQuantity = (invoiceId, itemIndex) => {
+    try {
+      const invoice = allSales.find(sale => sale.id === invoiceId);
+      if (invoice && invoice.items[itemIndex]) {
+        const updatedInvoice = { ...invoice };
+        
+        if (updatedInvoice.items[itemIndex].quantity > 1) {
+          updatedInvoice.items[itemIndex].quantity -= 1;
           
-          // إزالة الفاتورة من مبيعات الوردية النشطة
-          const activeShift = JSON.parse(localStorage.getItem('activeShift') || 'null');
-          if (activeShift) {
-            activeShift.sales = activeShift.sales.filter(sale => sale.id !== invoiceId);
-            activeShift.totalSales -= invoice.total;
-            activeShift.totalOrders -= 1;
-            localStorage.setItem('activeShift', JSON.stringify(activeShift));
-          }
+          // إعادة حساب المبالغ
+          updatedInvoice.subtotal = updatedInvoice.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+          updatedInvoice.total = updatedInvoice.subtotal - (updatedInvoice.discountAmount || 0) + (updatedInvoice.taxAmount || 0);
+          
+          // تحديث في localStorage
+          const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+          const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
+          localStorage.setItem('sales', JSON.stringify(updatedSales));
           
           // تحديث البيانات المحلية
-          setActiveShiftSales(prev => prev.filter(sale => sale.id !== invoiceId));
+          setAllSales(updatedSales);
+          setSelectedInvoice(updatedInvoice);
           
-          // إغلاق نافذة التفاصيل إذا كانت مفتوحة
-          if (selectedInvoice && selectedInvoice.id === invoiceId) {
-            closeInvoiceModal();
-          }
-          
-          notifySuccess('تم إجراء المرتجعات بنجاح', `تم إرجاع مبلغ ${invoice.total} جنيه`);
-        } catch (error) {
-          console.error('خطأ في إجراء المرتجعات:', error);
-          notifyError('خطأ في إجراء المرتجعات', 'حدث خطأ غير متوقع');
+          notifySuccess('تم بنجاح', 'تم تقليل الكمية');
+        } else {
+          notifyError('تحذير', 'لا يمكن تقليل الكمية عن 1. استخدم زر الحذف لحذف المنتج');
         }
-      };
+      }
+    } catch (error) {
+      console.error('خطأ في تقليل الكمية:', error);
+      notifyError('خطأ', 'حدث خطأ أثناء تقليل الكمية');
+    }
+  };
 
-      // عرض نافذة تأكيد مخصصة
-      const confirmDialog = document.createElement('div');
-      confirmDialog.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 backdrop-blur-sm';
-      confirmDialog.innerHTML = `
-        <div class="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp">
-          <div class="text-center">
-            <div class="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <RotateCcw class="h-8 w-8 text-red-400" />
+  const clearAllItemsFromInvoice = (invoiceId) => {
+    try {
+      const invoice = allSales.find(sale => sale.id === invoiceId);
+      if (invoice && invoice.items.length > 0) {
+        // إنشاء نافذة تأكيد
+        const confirmDialog = document.createElement('div');
+        confirmDialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        confirmDialog.innerHTML = `
+          <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-bold text-white mb-4">تأكيد حذف جميع المنتجات</h3>
+            <div class="mb-4 p-4 bg-gray-700 rounded-lg">
+              <p class="text-white font-medium">فاتورة #${invoice.id}</p>
+              <p class="text-gray-300 text-sm">عدد المنتجات: ${invoice.items.length}</p>
+              <p class="text-gray-300 text-sm">إجمالي الفاتورة: ${invoice.total} جنيه</p>
             </div>
-            <h3 class="text-xl font-bold text-white mb-4">تأكيد المرتجعات</h3>
-            <div class="text-purple-200 mb-4">
-              <p>رقم الفاتورة: <span class="text-white font-mono">#${invoice.id}</span></p>
-              <p>المبلغ: <span class="text-white font-bold">${invoice.total} جنيه</span></p>
-              <p>العميل: <span class="text-white">${invoice.customer.name}</span></p>
-            </div>
-            <p class="text-purple-300 mb-6">هل أنت متأكد من إجراء مرتجعات لهذه الفاتورة؟</p>
-            <div class="flex space-x-3">
-              <button id="confirmReturn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-xl transition-colors">
-                تأكيد المرتجعات
+            <p class="text-red-300 mb-6">هل أنت متأكد من حذف جميع المنتجات من هذه الفاتورة؟</p>
+            <div class="flex gap-4">
+              <button id="confirmClearAll" class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                تأكيد الحذف
               </button>
-              <button id="cancelReturn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-xl transition-colors">
+              <button id="cancelClearAll" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
                 إلغاء
               </button>
             </div>
           </div>
-        </div>
-      `;
-      
-      document.body.appendChild(confirmDialog);
-      
-      // إضافة مستمعي الأحداث
-      document.getElementById('confirmReturn').onclick = () => {
-        document.body.removeChild(confirmDialog);
-        confirmReturn();
-      };
-      
-      document.getElementById('cancelReturn').onclick = () => {
-        document.body.removeChild(confirmDialog);
-      };
+        `;
+        
+        document.body.appendChild(confirmDialog);
+        
+        document.getElementById('confirmClearAll').onclick = () => {
+          document.body.removeChild(confirmDialog);
+          
+          const updatedInvoice = { ...invoice };
+          updatedInvoice.items = [];
+          updatedInvoice.subtotal = 0;
+          updatedInvoice.total = 0;
+          
+          // تحديث في localStorage
+          const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+          const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
+          localStorage.setItem('sales', JSON.stringify(updatedSales));
+          
+          // تحديث البيانات المحلية
+          setAllSales(updatedSales);
+          setSelectedInvoice(updatedInvoice);
+          
+          notifySuccess('تم بنجاح', 'تم حذف جميع المنتجات من الفاتورة');
+        };
+        
+        document.getElementById('cancelClearAll').onclick = () => {
+          document.body.removeChild(confirmDialog);
+        };
+      } else {
+        notifyError('تحذير', 'لا توجد منتجات في هذه الفاتورة');
+      }
+    } catch (error) {
+      console.error('خطأ في حذف جميع المنتجات:', error);
+      notifyError('خطأ', 'حدث خطأ أثناء حذف جميع المنتجات');
     }
   };
 
-  // مرتجعات جزئية للمنتجات الفردية
-  const processPartialReturn = (invoiceId, item, itemIndex) => {
-    const invoice = activeShiftSales.find(sale => sale.id === invoiceId);
-    if (invoice && item) {
-      const confirmPartialReturn = () => {
-        try {
-          // إنشاء مرتجعات جزئية
-          const partialReturns = JSON.parse(localStorage.getItem('partialReturns') || '[]');
-          const partialReturnData = {
-            invoiceId: invoiceId,
-            itemId: item.id,
-            itemName: item.name,
-            itemCategory: item.category,
-            originalQuantity: item.quantity,
-            returnedQuantity: item.quantity, // يمكن تعديل هذا لاحقاً
-            itemPrice: item.price,
-            returnAmount: item.price * item.quantity,
-            returnDate: getCurrentDate(),
-            returnReason: 'مرتجعات جزئية للعميل',
-            originalInvoiceId: invoiceId,
-            customerName: invoice.customer.name,
-            customerPhone: invoice.customer.phone
-          };
-          partialReturns.push(partialReturnData);
-          localStorage.setItem('partialReturns', JSON.stringify(partialReturns));
-
-          // إزالة المنتج من الفاتورة الأصلية
+  const removeItemFromInvoice = (invoiceId, itemIndex) => {
+    try {
+      const invoice = allSales.find(sale => sale.id === invoiceId);
+      if (invoice && invoice.items[itemIndex]) {
+        const itemToRemove = invoice.items[itemIndex];
+        
+        // إنشاء نافذة تأكيد
+        const confirmDialog = document.createElement('div');
+        confirmDialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        confirmDialog.innerHTML = `
+          <div class="bg-gray-800 rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-bold text-white mb-4">تأكيد حذف المنتج</h3>
+            <div class="mb-4 p-4 bg-gray-700 rounded-lg">
+              <p class="text-white font-medium">${itemToRemove.name}</p>
+              <p class="text-gray-300 text-sm">الكمية: ${itemToRemove.quantity}</p>
+              <p class="text-gray-300 text-sm">السعر: ${itemToRemove.price} جنيه</p>
+              <p class="text-gray-300 text-sm">المجموع: ${itemToRemove.price * itemToRemove.quantity} جنيه</p>
+            </div>
+            <p class="text-gray-300 mb-6">هل أنت متأكد من حذف هذا المنتج من الفاتورة؟</p>
+            <div class="flex gap-4">
+              <button id="confirmDelete" class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                تأكيد الحذف
+              </button>
+              <button id="cancelDelete" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                إلغاء
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(confirmDialog);
+        
+        document.getElementById('confirmDelete').onclick = () => {
+          document.body.removeChild(confirmDialog);
+          
           const updatedInvoice = { ...invoice };
           updatedInvoice.items = updatedInvoice.items.filter((_, index) => index !== itemIndex);
           
           // إعادة حساب المبالغ
           updatedInvoice.subtotal = updatedInvoice.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-          updatedInvoice.total = updatedInvoice.subtotal - updatedInvoice.discountAmount + updatedInvoice.taxAmount;
-
-          // تحديث الفاتورة في الوردية النشطة
-          const activeShift = JSON.parse(localStorage.getItem('activeShift') || 'null');
-          if (activeShift) {
-            activeShift.sales = activeShift.sales.map(sale => 
-              sale.id === invoiceId ? updatedInvoice : sale
-            );
-            // إعادة حساب إجمالي المبيعات
-            activeShift.totalSales = activeShift.sales.reduce((total, sale) => total + sale.total, 0);
-            localStorage.setItem('activeShift', JSON.stringify(activeShift));
-          }
-
+          updatedInvoice.total = updatedInvoice.subtotal - (updatedInvoice.discountAmount || 0) + (updatedInvoice.taxAmount || 0);
+          
+          // تحديث في localStorage
+          const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+          const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
+          localStorage.setItem('sales', JSON.stringify(updatedSales));
+          
           // تحديث البيانات المحلية
-          setActiveShiftSales(prev => prev.map(sale => 
-            sale.id === invoiceId ? updatedInvoice : sale
-          ));
-
-          // تحديث الفاتورة المحددة إذا كانت مفتوحة
-          if (selectedInvoice && selectedInvoice.id === invoiceId) {
-            setSelectedInvoice(updatedInvoice);
-          }
-
-          notifySuccess('تم إجراء المرتجعات الجزئية بنجاح', `تم إرجاع ${item.name} بقيمة ${item.price * item.quantity} جنيه`);
-        } catch (error) {
-          console.error('خطأ في إجراء المرتجعات الجزئية:', error);
-          notifyError('خطأ في إجراء المرتجعات الجزئية', 'حدث خطأ غير متوقع');
-        }
-      };
-
-      // عرض نافذة تأكيد المرتجعات الجزئية
-      const confirmDialog = document.createElement('div');
-      confirmDialog.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 backdrop-blur-sm';
-      confirmDialog.innerHTML = `
-        <div class="glass-card p-6 w-full max-w-md mx-4 animate-fadeInUp">
-          <div class="text-center">
-            <div class="w-16 h-16 bg-orange-500 bg-opacity-20 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <RotateCcw class="h-8 w-8 text-orange-400" />
-            </div>
-            <h3 class="text-xl font-bold text-white mb-4">تأكيد المرتجعات الجزئية</h3>
-            <div class="text-purple-200 mb-4">
-              <p>الفاتورة: <span class="text-white font-mono">#${invoice.id}</span></p>
-              <p>المنتج: <span class="text-white font-bold">${item.name}</span></p>
-              <p>الكمية: <span class="text-white">${item.quantity}</span></p>
-              <p>السعر: <span class="text-white font-bold">${item.price} جنيه</span></p>
-              <p>المجموع: <span class="text-white font-bold">${item.price * item.quantity} جنيه</span></p>
-              <p>العميل: <span class="text-white">${invoice.customer.name}</span></p>
-            </div>
-            <p class="text-orange-300 mb-6">هل أنت متأكد من إرجاع هذا المنتج؟</p>
-            <div class="flex space-x-3">
-              <button id="confirmPartialReturn" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-xl transition-colors">
-                تأكيد المرتجعات
-              </button>
-              <button id="cancelPartialReturn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-xl transition-colors">
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(confirmDialog);
-      
-      // إضافة مستمعي الأحداث
-      document.getElementById('confirmPartialReturn').onclick = () => {
-        document.body.removeChild(confirmDialog);
-        confirmPartialReturn();
-      };
-      
-      document.getElementById('cancelPartialReturn').onclick = () => {
-        document.body.removeChild(confirmDialog);
-      };
+          setAllSales(updatedSales);
+          setSelectedInvoice(updatedInvoice);
+          
+          notifySuccess('تم بنجاح', 'تم حذف المنتج من الفاتورة');
+        };
+        
+        document.getElementById('cancelDelete').onclick = () => {
+          document.body.removeChild(confirmDialog);
+        };
+      }
+    } catch (error) {
+      console.error('خطأ في حذف المنتج:', error);
+      notifyError('خطأ', 'حدث خطأ أثناء حذف المنتج');
     }
   };
-
 
   const generateInvoiceContent = (invoice) => {
     const storeInfo = JSON.parse(localStorage.getItem('storeInfo') || '{}');
@@ -895,7 +867,6 @@ const Reports = () => {
     { id: 'inventory', name: 'تقرير المخزون', icon: BarChart3 },
     { id: 'invoices', name: 'فواتير الوردية النشطة', icon: Receipt },
     { id: 'partial-invoices', name: 'الفواتير غير المكتملة', icon: DollarSign },
-    { id: 'partialReturns', name: 'المرتجعات الجزئية', icon: RotateCcw }
   ];
 
   const periods = [
@@ -1027,8 +998,6 @@ const Reports = () => {
         return getFilteredInvoices();
       case 'partial-invoices':
         return getPartialInvoices();
-      case 'partialReturns':
-        return JSON.parse(localStorage.getItem('partialReturns') || '[]');
       default:
         return realTimeData.dailySales;
     }
@@ -1754,23 +1723,6 @@ const Reports = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                soundManager.play('update');
-                                editInvoice(item.id);
-                              }}
-                            className="text-green-400 hover:text-green-300 transition-all duration-200 p-2 hover:bg-green-500 hover:bg-opacity-20 rounded-lg border border-green-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
-                            title="تعديل الفاتورة"
-                            style={{ 
-                              pointerEvents: 'auto',
-                              zIndex: 10,
-                              position: 'relative'
-                            }}
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                          <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
                                 soundManager.play('print');
                                 reprintInvoice(item);
                               }}
@@ -1783,23 +1735,6 @@ const Reports = () => {
                             }}
                           >
                             <Printer className="h-5 w-5" />
-                          </button>
-                          <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                soundManager.play('refund');
-                                processReturn(item.id);
-                              }}
-                            className="text-orange-400 hover:text-orange-300 transition-all duration-200 p-2 hover:bg-orange-500 hover:bg-opacity-20 rounded-lg border border-orange-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
-                            title="إجراء مرتجعات"
-                            style={{ 
-                              pointerEvents: 'auto',
-                              zIndex: 10,
-                              position: 'relative'
-                            }}
-                          >
-                            <RotateCcw className="h-5 w-5" />
                           </button>
                           <button
                               onClick={(e) => {
@@ -2150,33 +2085,53 @@ const Reports = () => {
                           </span>
                         </td>
                         <td className="py-2 px-2 text-white text-center">
-                          <span className="bg-blue-500 bg-opacity-20 px-2 py-1 rounded-full text-xs font-bold">
-                            {item.quantity}
-                          </span>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('delete');
+                                decreaseItemQuantity(selectedInvoice.id, index);
+                              }}
+                              className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                              title="تقليل الكمية"
+                            >
+                              -
+                            </button>
+                            <span className="bg-blue-500 bg-opacity-20 px-2 py-1 rounded-full text-xs font-bold min-w-[30px] text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                soundManager.play('add');
+                                increaseItemQuantity(selectedInvoice.id, index);
+                              }}
+                              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                              title="زيادة الكمية"
+                            >
+                              +
+                            </button>
+                          </div>
                         </td>
                         <td className="py-2 px-2 text-white font-medium text-xs">{item.price} جنيه</td>
                         <td className="py-2 px-2 text-white font-bold text-green-400 text-sm">
                           {item.price * item.quantity} جنيه
                         </td>
                         <td className="py-2 px-2 text-white">
-                          <div className="flex gap-1">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                processPartialReturn(selectedInvoice?.id, item, index);
-                              }}
-                              className="text-orange-400 hover:text-orange-300 transition-colors p-1 hover:bg-orange-500 hover:bg-opacity-20 rounded-lg min-w-[24px] min-h-[24px] cursor-pointer"
-                              title="مرتجعات جزئية"
-                              style={{ 
-                                pointerEvents: 'auto',
-                                zIndex: 10,
-                                position: 'relative'
-                              }}
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              soundManager.play('delete');
+                              removeItemFromInvoice(selectedInvoice.id, index);
+                            }}
+                            className="text-red-400 hover:text-red-300 transition-all duration-200 p-1 hover:bg-red-500 hover:bg-opacity-20 rounded border border-red-400 border-opacity-30 hover:border-opacity-60"
+                            title="حذف المنتج"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </td>
                 </tr>
               ))}
@@ -2236,27 +2191,27 @@ const Reports = () => {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-3">
-              <h4 className="text-base font-semibold text-white">الإجراءات المتاحة</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    soundManager.play('update');
-                    editInvoice(selectedInvoice?.id);
-                  }}
-                  className="btn-primary flex items-center justify-center px-3 py-2 hover:scale-105 transition-all duration-200 min-h-[40px] cursor-pointer text-sm"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10,
-                    position: 'relative'
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  تعديل الفاتورة
-                </button>
+              {/* Actions */}
+              <div className="space-y-3">
+                <h4 className="text-base font-semibold text-white">الإجراءات المتاحة</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      soundManager.play('delete');
+                      clearAllItemsFromInvoice(selectedInvoice.id);
+                    }}
+                    className="btn-primary bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[50px] cursor-pointer"
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10,
+                      position: 'relative'
+                    }}
+                  >
+                    <Trash2 className="h-5 w-5 mr-2" />
+                    حذف جميع المنتجات
+                  </button>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -2293,23 +2248,6 @@ const Reports = () => {
                     سداد باقي المبلغ
                   </button>
                 )}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    soundManager.play('refund');
-                    processReturn(selectedInvoice?.id);
-                  }}
-                  className="btn-primary bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-2 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center hover:scale-105 min-h-[40px] cursor-pointer text-sm"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10,
-                    position: 'relative'
-                  }}
-                >
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  مرتجعات كاملة
-                </button>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
