@@ -262,8 +262,8 @@ function App() {
 
   return (
     <DataLoader>
-      <AuthProvider>
-        <NotificationProvider>
+      <NotificationProvider>
+        <AuthProvider>
           <div className="flex h-screen overflow-hidden bg-gray-900">
             <Sidebar />
             <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 max-w-full ipad-main-content ipad-pro-main-content">
@@ -311,8 +311,8 @@ function App() {
             </Routes>
           </div>
           </div>
-        </NotificationProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </DataLoader>
   );
 }
