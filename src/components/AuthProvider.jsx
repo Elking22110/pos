@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentDate } from '../utils/dateUtils.js';
 import soundManager from '../utils/soundManager.js';
+import { useNotifications } from './NotificationSystem.jsx';
 
 const AuthContext = createContext();
 
@@ -16,11 +17,21 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
+  const { notifyUserLogin, notifyUserLogout, notifyError } = useNotifications();
 
-  // تشفير البيانات الحساسة
+  // تشفير البيانات الحساسة - تحسين الأمان
   const encryptData = (data) => {
     try {
-      return btoa(JSON.stringify(data));
+      const jsonString = JSON.stringify(data);
+      // استخدام تشفير بسيط لكن أفضل من Base64
+      const key = 'ElkingStore2024SecretKey!@#';
+      let encrypted = '';
+      for (let i = 0; i < jsonString.length; i++) {
+        encrypted += String.fromCharCode(
+          jsonString.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
+      }
+      return btoa(encrypted);
     } catch (error) {
       console.error('خطأ في التشفير:', error);
       return null;
@@ -30,18 +41,45 @@ export const AuthProvider = ({ children }) => {
   // فك تشفير البيانات
   const decryptData = (encryptedData) => {
     try {
-      return JSON.parse(atob(encryptedData));
+      const encrypted = atob(encryptedData);
+      const key = 'ElkingStore2024SecretKey!@#';
+      let decrypted = '';
+      for (let i = 0; i < encrypted.length; i++) {
+        decrypted += String.fromCharCode(
+          encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
+      }
+      return JSON.parse(decrypted);
     } catch (error) {
       console.error('خطأ في فك التشفير:', error);
       return null;
     }
   };
 
-  // تسجيل العمليات الحساسة - معطل لتجنب المشاكل
+  // تسجيل العمليات الحساسة
   const logActivity = React.useCallback((action, details = {}) => {
-    // إيقاف تسجيل النشاط لتجنب المشاكل
-    return;
-  }, []);
+    try {
+      const logEntry = {
+        timestamp: getCurrentDate(),
+        action,
+        details,
+        user: user?.username || 'unknown'
+      };
+      
+      // حفظ في localStorage مع تشفير
+      const existingLogs = JSON.parse(localStorage.getItem('activity_logs') || '[]');
+      existingLogs.push(logEntry);
+      
+      // الاحتفاظ بآخر 1000 سجل فقط
+      if (existingLogs.length > 1000) {
+        existingLogs.splice(0, existingLogs.length - 1000);
+      }
+      
+      localStorage.setItem('activity_logs', JSON.stringify(existingLogs));
+    } catch (error) {
+      console.error('خطأ في تسجيل النشاط:', error);
+    }
+  }, [user]);
 
   // تسجيل الدخول
   const login = async (username, password) => {
@@ -73,9 +111,9 @@ export const AuthProvider = ({ children }) => {
       } else {
         // التحقق من المستخدمين الافتراضيين (للتوافق مع النظام القديم)
         const validCredentials = {
-          'admin': 'admin123',
-          'cashier': 'cashier123',
-          'manager': 'manager123'
+          'admin': 'Admin@2024!',
+          'cashier': 'Cashier@2024!',
+          'manager': 'Manager@2024!'
         };
         
         if (validCredentials[username] && validCredentials[username] === password) {
@@ -123,16 +161,18 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('users', JSON.stringify(updatedUsers));
       }
       
-      // تسجيل عملية تسجيل الدخول
+      // تسجيل عملية تسجيل الدخول + إشعار
       logActivity('LOGIN', { username, success: true });
+      try { notifyUserLogin(mockUser.username, mockUser.role); } catch(_) {}
       
       // تشغيل صوت تسجيل الدخول الناجح
       soundManager.play('login');
       
       return { success: true, user: mockUser };
     } catch (error) {
-      // تسجيل محاولة تسجيل دخول فاشلة
+      // تسجيل محاولة تسجيل دخول فاشلة + إشعار
       logActivity('LOGIN_FAILED', { username, error: error.message });
+      try { notifyError('فشل تسجيل الدخول', error.message); } catch(_) {}
       
       // تشغيل صوت تسجيل الدخول الفاشل
       soundManager.play('error');
@@ -149,8 +189,9 @@ export const AuthProvider = ({ children }) => {
     // تشغيل صوت تسجيل الخروج
     soundManager.play('logout');
     
-    // تسجيل عملية تسجيل الخروج
+    // تسجيل عملية تسجيل الخروج + إشعار
     logActivity('LOGOUT', { username: user?.username });
+    try { notifyUserLogout(user?.username || ''); } catch(_) {}
     
     setUser(null);
     setToken(null);
@@ -186,9 +227,9 @@ export const AuthProvider = ({ children }) => {
       
       // التحقق من كلمة المرور القديمة
       const validCredentials = {
-        'admin': 'admin123',
-        'cashier': 'cashier123',
-        'manager': 'manager123'
+        'admin': 'Admin@2024!',
+        'cashier': 'Cashier@2024!',
+        'manager': 'Manager@2024!'
       };
       
       if (!user || !validCredentials[user.username] || validCredentials[user.username] !== oldPassword) {

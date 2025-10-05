@@ -7,7 +7,8 @@ class ThermalPrinterManager {
     this.writer = null;
     this.isConnected = false;
     this.printerSettings = {
-      baudRate: 9600,
+      // مطابق لإعدادات XP-T80Q في برنامج XPrinter
+      baudRate: 19200,
       dataBits: 8,
       stopBits: 1,
       parity: 'none',
@@ -30,14 +31,27 @@ class ThermalPrinterManager {
         throw new Error('لم يتم اختيار منفذ الطابعة');
       }
       
-      // فتح الاتصال
+      // محاولة فتح الاتصال بعدة سرعات (توافقية XP-T80Q)
+      const baudCandidates = [this.printerSettings.baudRate, 9600, 38400, 115200];
+      let opened = false;
+      for (const rate of baudCandidates) {
+        try {
       await this.port.open({
-        baudRate: this.printerSettings.baudRate,
+            baudRate: rate,
         dataBits: this.printerSettings.dataBits,
         stopBits: this.printerSettings.stopBits,
         parity: this.printerSettings.parity,
         flowControl: this.printerSettings.flowControl
       });
+          this.printerSettings.baudRate = rate; // حفظ السرعة العاملة
+          opened = true;
+          break;
+        } catch (e) {
+          // جرّب السرعة التالية
+          try { if (this.port && this.port.readable) { await this.port.close(); } } catch (_) {}
+        }
+      }
+      if (!opened) throw new Error('تعذر فتح منفذ الطابعة بأي سرعة معروفة');
 
       // الحصول على writer
       this.writer = this.port.writable.getWriter();
@@ -95,6 +109,53 @@ class ThermalPrinterManager {
       
     } catch (error) {
       console.error('خطأ في إرسال الأمر للطابعة:', error);
+      throw error;
+    }
+  }
+
+  // إرسال بايتات ثنائية للطابعة (لأوامر ESC/POS)
+  async sendBytes(byteArray) {
+    try {
+      if (!this.isConnected || !this.writer) {
+        throw new Error('الطابعة غير متصلة');
+      }
+
+      const data = new Uint8Array(byteArray);
+      await this.writer.write(data);
+      await new Promise(resolve => setTimeout(resolve, 60));
+    } catch (error) {
+      console.error('خطأ في إرسال البايتات للطابعة:', error);
+      throw error;
+    }
+  }
+
+  // قطع الورق
+  async cutPaper() {
+    try {
+      if (!this.isConnected || !this.writer) {
+        throw new Error('الطابعة غير متصلة');
+      }
+
+      // مسافات إضافية قبل القطع
+      await this.sendCommand('\n\n\n');
+      // أوامر القطع الموصى بها لطابعات XPrinter XP-T80Q
+      // ترتيب أوامر القطع حسب شائع XPrinter XP-T80Q
+      const cutSequences = [
+        [0x1B, 0x64, 0x03],          // تغذية 3 أسطر
+        [0x1D, 0x56, 0x41, 0x00],    // GS V A 0 – Full cut
+        [0x1D, 0x56, 0x41, 0x01],    // GS V A 1 – Partial cut
+        [0x1D, 0x56, 0x42, 0x00],    // GS V B 0 – Full cut (بعض الفيرموير)
+        [0x1D, 0x56, 0x00],          // GS V 0 – Full cut legacy
+        [0x1B, 0x69]                 // ESC i – بديل قديم
+      ];
+
+      for (const seq of cutSequences) {
+        await this.sendBytes(seq);
+      }
+      
+      console.log('تم قطع الورق بنجاح');
+    } catch (error) {
+      console.error('خطأ في قطع الورق:', error);
       throw error;
     }
   }
@@ -277,8 +338,7 @@ class ThermalPrinterManager {
       await this.sendCommand('Elking Store\n');
 
       // قطع الورق
-      await this.sendCommand('\n\n\n');
-      await this.sendCommand('\x1D\x56\x00'); // قطع الورق
+      await this.cutPaper();
 
       console.log('تم طباعة الإيصال بنجاح');
       return true;
@@ -335,8 +395,7 @@ class ThermalPrinterManager {
       await this.sendCommand('Elking Store\n');
 
       // قطع الورق
-      await this.sendCommand('\n\n\n');
-      await this.sendCommand('\x1D\x56\x00'); // قطع الورق
+      await this.cutPaper();
 
       console.log('تم طباعة التقرير بنجاح');
       return true;

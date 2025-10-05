@@ -17,11 +17,11 @@ class PerformanceManager {
 
   // تهيئة النظام
   init() {
-    // إيقاف جميع الخدمات لتجنب المشاكل
-    // this.setupMemoryMonitoring(); // معطل
-    // this.setupImageOptimization(); // معطل
-    // this.setupLazyLoading(); // معطل
-    // this.setupCompression(); // معطل
+    // تفعيل جميع الخدمات المحسنة
+    this.setupMemoryMonitoring();
+    this.setupImageOptimization();
+    this.setupLazyLoading();
+    this.setupCompression();
   }
 
   // مراقبة استخدام الذاكرة

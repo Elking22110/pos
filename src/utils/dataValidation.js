@@ -139,12 +139,35 @@ export class DataValidator {
     }
   }
 
-  // تنظيف البيانات القديمة - معطل لحماية البيانات
+  // تنظيف البيانات القديمة
   static cleanupOldData() {
     try {
-      // تم تعطيل هذه الوظيفة لحماية البيانات من الحذف التلقائي
-      console.log('⚠️ تم تعطيل تنظيف البيانات القديمة لحماية البيانات');
-      return false;
+      // تنظيف سجلات النشاط القديمة (أكثر من 30 يوم)
+      const activityLogs = JSON.parse(localStorage.getItem('activity_logs') || '[]');
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const cleanedLogs = activityLogs.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate > thirtyDaysAgo;
+      });
+      
+      localStorage.setItem('activity_logs', JSON.stringify(cleanedLogs));
+      
+      // تنظيف النسخ الاحتياطية القديمة (أكثر من 7 أيام)
+      const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const cleanedBackups = backups.filter(backup => {
+        const backupDate = new Date(backup.timestamp);
+        return backupDate > sevenDaysAgo;
+      });
+      
+      localStorage.setItem('backups', JSON.stringify(cleanedBackups));
+      
+      console.log('✅ تم تنظيف البيانات القديمة بنجاح');
+      return true;
     } catch (error) {
       console.error('خطأ في تنظيف البيانات القديمة:', error);
       return false;

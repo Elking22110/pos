@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Clock, 
   Play, 
@@ -23,6 +23,18 @@ const ShiftManager = () => {
   const [currentShift, setCurrentShift] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  // تفاصيل الوردية النشطة لحظياً (تشمل المرتجعات)
+  const { activeDetails, activeSalesList } = useMemo(() => {
+    try {
+      if (!currentShift) return { activeDetails: null, activeSalesList: [] };
+      const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
+      const list = (currentShift.sales && currentShift.sales.length > 0)
+        ? currentShift.sales
+        : allSales.filter(s => s.shiftId === currentShift.id);
+      return { activeDetails: calculateSalesDetails(list || []), activeSalesList: list };
+    } catch (_) { return { activeDetails: null, activeSalesList: [] }; }
+  }, [currentShift]);
 
   // تحميل الورديات المحفوظة
   useEffect(() => {
@@ -66,6 +78,35 @@ const ShiftManager = () => {
     }
   }, []);
 
+  // التحديث اللحظي عند تغير بيانات الوردية من نقطة البيع
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const active = JSON.parse(localStorage.getItem('activeShift') || 'null');
+        if (active && active.status === 'active') {
+          setCurrentShift(active);
+        } else {
+          setCurrentShift(null);
+        }
+        const all = JSON.parse(localStorage.getItem('shifts') || '[]');
+        setShifts(all);
+      } catch (_) {}
+    };
+
+    const onDataUpdated = (e) => {
+      if (!e || !e.detail || !e.detail.type) { reload(); return; }
+      if (e.detail.type === 'shift' || e.detail.type === 'sales') reload();
+    };
+    window.addEventListener('dataUpdated', onDataUpdated);
+    window.addEventListener('shiftStarted', reload);
+    window.addEventListener('shiftEnded', reload);
+    return () => {
+      window.removeEventListener('dataUpdated', onDataUpdated);
+      window.removeEventListener('shiftStarted', reload);
+      window.removeEventListener('shiftEnded', reload);
+    };
+  }, []);
+
   // بدء وردية جديدة
   const startShift = async () => {
     const now = new Date();
@@ -91,6 +132,7 @@ const ShiftManager = () => {
 
     setCurrentShift(newShift);
     localStorage.setItem('activeShift', JSON.stringify(newShift));
+    try { window.dispatchEvent(new CustomEvent('shiftStarted', { detail: { shiftId: newShift.id } })); } catch(_) {}
     
     // حفظ الوردية في قاعدة البيانات أيضاً للحماية من فقدان البيانات
     try {
@@ -148,6 +190,20 @@ const ShiftManager = () => {
     setCurrentShift(null);
     
     localStorage.setItem('shifts', JSON.stringify(updatedShifts));
+    // إزالة فواتير الوردية النشطة من قائمة المبيعات العامة (الاحتفاظ بغير المكتمل فقط)
+    try {
+      const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
+      const cleaned = allSales.filter(inv => {
+        // أبقِ الفواتير غير المكتملة (بعربون ولم تُسدَّد كاملة)
+        const isPartial = inv?.downPayment?.enabled && ((inv.total || 0) - (parseFloat(inv.downPayment.amount) || 0) > 0);
+        // إن كانت تخص هذه الوردية وتحسب مكتملة/مرتجع، تُزال من عرض الوردية النشطة في التقارير
+        const belongsToShift = inv.shiftId ? (inv.shiftId === currentShift.id) : (inv.shiftId === currentShift?.id);
+        return !belongsToShift || isPartial;
+      });
+      localStorage.setItem('sales', JSON.stringify(cleaned));
+    } catch (_) {}
+
+
     localStorage.removeItem('activeShift');
     
     // إرسال إشارة لإعادة تعيين بيانات نقطة البيع
@@ -161,8 +217,14 @@ const ShiftManager = () => {
     // تشغيل صوت إنهاء الوردية
     soundManager.play('endShift');
     
-    // عرض تقرير الوردية
+    // عرض تقرير الوردية (يجب أن يحدث قبل تصفير المرتجعات لضمان ظهورها)
     showShiftReport(updatedShift);
+    
+    // تصفير تقرير المرتجعات بعد عرض التقرير بقليل
+    setTimeout(() => {
+      try { localStorage.setItem('returns', JSON.stringify([])); } catch(_) {}
+      try { window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'returns' } })); } catch(_) {}
+    }, 300);
     
     setMessage('تم إنهاء الوردية بنجاح!');
     setTimeout(() => setMessage(''), 3000);
@@ -188,22 +250,59 @@ const ShiftManager = () => {
       'مرتجع': { received: 0, remaining: 0, count: 0 }
     };
 
-    (sales || []).forEach(sale => {
-      // إجمالي المبيعات (دائماً المبلغ الأصلي قبل الخصم)
-      totalSales += sale.total;
-      
-      // فحص نوع الفاتورة
-      if (sale.type === 'refund') {
-        // المرتجعات: المبلغ الإجمالي سالب
-        totalRefunds += sale.total;
+    // دمج المرتجعات من تقرير returns ضمن الحسابات لهذه الوردية
+    let combinedSales = Array.isArray(sales) ? [...sales] : [];
+    try {
+      const returnsList = JSON.parse(localStorage.getItem('returns') || '[]');
+      // استنتاج shiftId من أول عنصر في المبيعات، أو من الوردية النشطة
+      let shiftIdRef = combinedSales.find(s => s && s.shiftId)?.shiftId;
+      if (!shiftIdRef) {
+        try { shiftIdRef = JSON.parse(localStorage.getItem('activeShift') || 'null')?.id; } catch(_) {}
+      }
+      const relevantReturns = returnsList.filter(r => !shiftIdRef || r.shiftId === shiftIdRef);
+      relevantReturns.forEach(r => {
+        const amount = Math.abs(Number(r.amount) || 0);
+        combinedSales.push({ type: 'refund', total: -amount, paymentMethod: 'مرتجع' });
+      });
+    } catch(_) {}
+
+    (combinedSales || []).forEach(sale => {
+      const saleTotal = Number(sale.total) || 0;
+
+      // تحديد إن كانت العملية مرتجعاً بأي من الدلائل المتاحة
+      let refundAmount = 0;
+      const explicitRefund = sale.type === 'refund' || sale.isRefund === true;
+      if (explicitRefund) {
+        refundAmount = Math.abs(saleTotal);
+      }
+      if (saleTotal < 0) {
+        refundAmount = Math.max(refundAmount, Math.abs(saleTotal));
+      }
+      if (Number(sale.refundAmount) > 0) {
+        refundAmount = Math.max(refundAmount, Number(sale.refundAmount));
+      }
+      if (Array.isArray(sale.items)) {
+        const negativeLines = sale.items.reduce((sum, item) => {
+          const line = (Number(item.price) || 0) * (Number(item.quantity) || 0);
+          return line < 0 ? sum + Math.abs(line) : sum;
+        }, 0);
+        refundAmount = Math.max(refundAmount, negativeLines);
+      }
+
+      if (refundAmount > 0) {
+        totalRefunds += refundAmount;
         refundInvoices++;
-        
-        // إضافة للمرتبعات
         if (paymentMethods['مرتجع']) {
-          paymentMethods['مرتجع'].received += sale.total;
+          paymentMethods['مرتجع'].received += refundAmount;
           paymentMethods['مرتجع'].count++;
         }
-      } else {
+        return; // لا تُحتسب ضمن إجمالي المبيعات
+      }
+
+      // فاتورة عادية: أضف لإجمالي المبيعات
+      totalSales += saleTotal;
+
+      {
         // فاتورة عادية أو بخصم
         let hasDiscount = sale.discount && sale.discount.amount > 0;
         let hasDownPayment = sale.downPayment && sale.downPayment.enabled;
@@ -279,8 +378,21 @@ const ShiftManager = () => {
         return;
       }
 
-      // حساب تفاصيل المبيعات إذا لم تكن موجودة
-      const salesDetails = shift.salesDetails || calculateSalesDetails(shift.sales || []);
+      // تحديد مبيعات الوردية: من داخل الوردية مباشرة أو من جميع المبيعات بحسب shiftId أو نطاق الزمن
+      const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
+      const salesForShift = (shift.sales && shift.sales.length > 0)
+        ? shift.sales
+        : allSales.filter(s => {
+            const byId = s.shiftId && s.shiftId === shift.id;
+            if (byId) return true;
+            const ts = new Date(s.timestamp || s.date || 0).getTime();
+            const start = new Date(shift.startTime).getTime();
+            const end = new Date(shift.endTime || Date.now()).getTime();
+            return ts >= start && ts <= end;
+          });
+
+      // أعِد حساب تفاصيل المبيعات دائماً بناءً على البيانات الحالية لضمان عدم عرض نتائج قديمة
+      const salesDetails = calculateSalesDetails(salesForShift || []);
       
       // التحقق من صحة البيانات
       console.log('🔍 فحص بيانات التقرير:', {
@@ -302,6 +414,25 @@ const ShiftManager = () => {
         });
       }
       
+      // تجهيز بيانات المرتجعات
+      const refundSales = (salesForShift || []).filter(s => s && s.type === 'refund');
+      const refundsTotalAmount = refundSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+      const refundItemsAgg = (() => {
+        const map = new Map();
+        refundSales.forEach(sale => {
+          (sale.items || []).forEach(item => {
+            const key = (item.id || item.sku || item.name || 'منتج غير معروف') + '|' + (item.name || 'منتج غير معروف');
+            const prev = map.get(key) || { name: item.name || 'منتج غير معروف', quantity: 0, total: 0 };
+            const qty = Number(item.quantity) || 0;
+            const price = Number(item.price) || 0;
+            prev.quantity += qty;
+            prev.total += qty * price;
+            map.set(key, prev);
+          });
+        });
+        return Array.from(map.values());
+      })();
+
       const reportWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
       
       if (!reportWindow) {
@@ -585,27 +716,27 @@ const ShiftManager = () => {
             <div class="summary-grid">
               <div class="summary-card sales">
                 <h3>💰 إجمالي المبيعات</h3>
-                <div class="value">${salesDetails.totalSales.toFixed(2)}</div>
+                <div class="value">${(salesDetails.totalSales || 0).toFixed(2)}</div>
                 <div class="currency">جنيه مصري</div>
               </div>
               <div class="summary-card received">
                 <h3>💵 المبلغ المستلم</h3>
-                <div class="value">${salesDetails.totalReceived.toFixed(2)}</div>
+                <div class="value">${(salesDetails.totalReceived || 0).toFixed(2)}</div>
                 <div class="currency">جنيه مصري</div>
               </div>
               <div class="summary-card remaining">
                 <h3>⏳ المبلغ المتبقي</h3>
-                <div class="value">${salesDetails.totalRemaining.toFixed(2)}</div>
+                <div class="value">${(salesDetails.totalRemaining || 0).toFixed(2)}</div>
                 <div class="currency">جنيه مصري</div>
               </div>
               <div class="summary-card refunds negative">
                 <h3>🔄 إجمالي المرتجعات</h3>
-                <div class="value">-${salesDetails.totalRefunds.toFixed(2)}</div>
+                <div class="value">-${(salesDetails.totalRefunds || 0).toFixed(2)}</div>
                 <div class="currency">جنيه مصري</div>
               </div>
               <div class="summary-card discounts negative">
                 <h3>🎯 إجمالي الخصومات</h3>
-                <div class="value">-${salesDetails.totalDiscounts.toFixed(2)}</div>
+                <div class="value">-${(salesDetails.totalDiscounts || 0).toFixed(2)}</div>
                 <div class="currency">جنيه مصري</div>
               </div>
               <div class="summary-card invoices">
@@ -634,9 +765,9 @@ const ShiftManager = () => {
                     <tr>
                       <td><span class="highlight">#${sale.id}</span></td>
                       <td>${sale.customer.name}</td>
-                      <td><strong>${sale.total.toFixed(2)} جنيه</strong></td>
-                      <td><strong>${sale.downPayment && sale.downPayment.enabled ? sale.downPayment.amount.toFixed(2) : sale.total.toFixed(2)} جنيه</strong></td>
-                      <td><strong>${sale.downPayment && sale.downPayment.enabled ? (sale.downPayment.remaining || (sale.total - sale.downPayment.amount)).toFixed(2) : '0.00'} جنيه</strong></td>
+                      <td><strong>${(sale.total || 0).toFixed(2)} جنيه</strong></td>
+                      <td><strong>${sale.downPayment && sale.downPayment.enabled ? (sale.downPayment.amount || 0).toFixed(2) : (sale.total || 0).toFixed(2)} جنيه</strong></td>
+                      <td><strong>${sale.downPayment && sale.downPayment.enabled ? (sale.downPayment.remaining || ((sale.total || 0) - (sale.downPayment.amount || 0))).toFixed(2) : '0.00'} جنيه</strong></td>
                       <td>
                         <span class="status-badge ${
                           sale.type === 'refund' ? 'status-refund' :
@@ -653,24 +784,78 @@ const ShiftManager = () => {
               </table>
             </div>
 
+            ${refundSales.length > 0 ? `
+            <div class="details-section">
+              <h2>🔄 تفاصيل فواتير المرتجعات</h2>
+              <table class="details-table">
+                <thead>
+                  <tr>
+                    <th>🔢 رقم الفاتورة</th>
+                    <th>👤 العميل</th>
+                    <th>💵 قيمة المرتجع</th>
+                    <th>🕐 الوقت</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${refundSales.map(sale => `
+                    <tr>
+                      <td><span class="highlight">#${sale.id}</span></td>
+                      <td>${(sale.customer && sale.customer.name) || 'غير محدد'}</td>
+                      <td style="color:#e53e3e; font-weight:700;">-${(Number(sale.total)||0).toFixed(2)} جنيه</td>
+                      <td>${formatDateTime(sale.timestamp)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" style="text-align:right; font-weight:700;">الإجمالي</td>
+                    <td colspan="2" style="color:#e53e3e; font-weight:800;">-${(refundsTotalAmount||0).toFixed(2)} جنيه</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="details-section">
+              <h2>📦 تجميع المرتجعات حسب المنتج</h2>
+              <table class="details-table">
+                <thead>
+                  <tr>
+                    <th>المنتج</th>
+                    <th>الكمية المرتجعة</th>
+                    <th>القيمة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${refundItemsAgg.map(row => `
+                    <tr>
+                      <td>${row.name}</td>
+                      <td style="font-weight:600;">${row.quantity}</td>
+                      <td style="color:#e53e3e; font-weight:700;">-${(row.total||0).toFixed(2)} جنيه</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : ''}
+
             <div class="details-section">
               <h2>🏦 ملخص الصندوق</h2>
               <table class="details-table">
                 <tr>
                   <td><strong>💰 المبلغ الافتتاحي</strong></td>
-                  <td><span class="highlight">${shift.cashDrawer.openingAmount.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight">${(shift.cashDrawer?.openingAmount || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>💵 المبلغ المستلم</strong></td>
-                  <td><span class="highlight">${salesDetails.totalReceived.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight">${(salesDetails.totalReceived || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>🔄 إجمالي المرتجعات</strong></td>
-                  <td><span class="highlight" style="color: #e53e3e;">-${salesDetails.totalRefunds.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #e53e3e;">-${(salesDetails.totalRefunds || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>🎯 إجمالي الخصومات</strong></td>
-                  <td><span class="highlight" style="color: #e53e3e;">-${salesDetails.totalDiscounts.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #e53e3e;">-${(salesDetails.totalDiscounts || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>📊 المبلغ المتوقع في الصندوق</strong></td>
@@ -678,7 +863,7 @@ const ShiftManager = () => {
                 </tr>
                 <tr>
                   <td><strong>⏳ المبلغ المتبقي للعملاء</strong></td>
-                  <td><span class="highlight" style="color: #d69e2e;">${salesDetails.totalRemaining.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #d69e2e;">${(salesDetails.totalRemaining || 0).toFixed(2)} جنيه</span></td>
                 </tr>
               </table>
             </div>
@@ -740,16 +925,16 @@ const ShiftManager = () => {
                           ${methodIcon} ${method}
                         </td>
                         <td style="padding: 12px; text-align: center; font-weight: 600; color: #38a169;">
-                          ${data.received.toFixed(2)} جنيه
+                          ${(data.received || 0).toFixed(2)} جنيه
                         </td>
                         <td style="padding: 12px; text-align: center; font-weight: 600; color: #d69e2e;">
-                          ${data.remaining.toFixed(2)} جنيه
+                          ${(data.remaining || 0).toFixed(2)} جنيه
                         </td>
                         <td style="padding: 12px; text-align: center; font-weight: 600; color: #3182ce;">
                           ${data.count} فاتورة
                         </td>
                         <td style="padding: 12px; text-align: center; font-weight: 700; color: ${methodColor}; background: ${methodColor}15; border-radius: 8px;">
-                          ${total.toFixed(2)} جنيه
+                          ${(total || 0).toFixed(2)} جنيه
                         </td>
                       </tr>
                     `;
@@ -761,16 +946,16 @@ const ShiftManager = () => {
                       📊 المجموع الكلي
                     </td>
                     <td style="padding: 15px; text-align: center; font-weight: 700; color: #38a169; font-size: 16px;">
-                      ${salesDetails.totalReceived.toFixed(2)} جنيه
+                      ${(salesDetails.totalReceived || 0).toFixed(2)} جنيه
                     </td>
                     <td style="padding: 15px; text-align: center; font-weight: 700; color: #d69e2e; font-size: 16px;">
-                      ${salesDetails.totalRemaining.toFixed(2)} جنيه
+                      ${(salesDetails.totalRemaining || 0).toFixed(2)} جنيه
                     </td>
                     <td style="padding: 15px; text-align: center; font-weight: 700; color: #3182ce; font-size: 16px;">
                       ${salesDetails.totalInvoices} فاتورة
                     </td>
                     <td style="padding: 15px; text-align: center; font-weight: 700; color: #0ea5e9; font-size: 18px; background: #0ea5e920; border-radius: 8px;">
-                      ${(salesDetails.totalReceived + salesDetails.totalRemaining).toFixed(2)} جنيه
+                      ${((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)).toFixed(2)} جنيه
                     </td>
                   </tr>
                 </tfoot>
@@ -787,27 +972,27 @@ const ShiftManager = () => {
                 </tr>
                 <tr>
                   <td><strong>💵 المبلغ المستلم</strong></td>
-                  <td><span class="highlight">${salesDetails.totalReceived.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight">${(salesDetails.totalReceived || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>⏳ المبلغ المتبقي</strong></td>
-                  <td><span class="highlight">${salesDetails.totalRemaining.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight">${(salesDetails.totalRemaining || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr>
                   <td><strong>🔄 إجمالي المرتجعات</strong></td>
-                  <td><span class="highlight" style="color: #e53e3e;">-${salesDetails.totalRefunds.toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #e53e3e;">-${(salesDetails.totalRefunds || 0).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr style="background: #f0f9ff; border: 2px solid #0ea5e9;">
                   <td><strong>✅ المجموع المحسوب</strong></td>
-                  <td><span class="highlight" style="color: #0ea5e9; font-size: 16px; font-weight: 700;">${(salesDetails.totalReceived + salesDetails.totalRemaining).toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #0ea5e9; font-size: 16px; font-weight: 700;">${((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)).toFixed(2)} جنيه</span></td>
                 </tr>
                 <tr style="background: #f0fdf4; border: 2px solid #22c55e;">
                   <td><strong>✅ المجموع المتوقع</strong></td>
-                  <td><span class="highlight" style="color: #22c55e; font-size: 16px; font-weight: 700;">${(salesDetails.totalSales - salesDetails.totalRefunds).toFixed(2)} جنيه</span></td>
+                  <td><span class="highlight" style="color: #22c55e; font-size: 16px; font-weight: 700;">${((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0)).toFixed(2)} جنيه</span></td>
                 </tr>
-                <tr style="background: ${Math.abs((salesDetails.totalReceived + salesDetails.totalRemaining) - (salesDetails.totalSales - salesDetails.totalRefunds)) <= 0.01 ? '#f0fdf4' : '#fef2f2'}; border: 2px solid ${Math.abs((salesDetails.totalReceived + salesDetails.totalRemaining) - (salesDetails.totalSales - salesDetails.totalRefunds)) <= 0.01 ? '#22c55e' : '#ef4444'};">
-                  <td><strong>${Math.abs((salesDetails.totalReceived + salesDetails.totalRemaining) - (salesDetails.totalSales - salesDetails.totalRefunds)) <= 0.01 ? '✅' : '❌'} حالة الحساب</strong></td>
-                  <td><span class="highlight" style="color: ${Math.abs((salesDetails.totalReceived + salesDetails.totalRemaining) - (salesDetails.totalSales - salesDetails.totalRefunds)) <= 0.01 ? '#22c55e' : '#ef4444'}; font-size: 16px; font-weight: 700;">${Math.abs((salesDetails.totalReceived + salesDetails.totalRemaining) - (salesDetails.totalSales - salesDetails.totalRefunds)) <= 0.01 ? 'صحيح' : 'يحتاج مراجعة'}</span></td>
+                <tr style="background: ${Math.abs(((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)) - ((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0))) <= 0.01 ? '#f0fdf4' : '#fef2f2'}; border: 2px solid ${Math.abs(((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)) - ((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0))) <= 0.01 ? '#22c55e' : '#ef4444'};">
+                  <td><strong>${Math.abs(((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)) - ((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0))) <= 0.01 ? '✅' : '❌'} حالة الحساب</strong></td>
+                  <td><span class="highlight" style="color: ${Math.abs(((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)) - ((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0))) <= 0.01 ? '#22c55e' : '#ef4444'}; font-size: 16px; font-weight: 700;">${Math.abs(((salesDetails.totalReceived || 0) + (salesDetails.totalRemaining || 0)) - ((salesDetails.totalSales || 0) - (salesDetails.totalRefunds || 0))) <= 0.01 ? 'صحيح' : 'يحتاج مراجعة'}</span></td>
                 </tr>
               </table>
             </div>
@@ -935,9 +1120,9 @@ const ShiftManager = () => {
         formatDateTime(shift.startTime),
         shift.endTime ? formatDateTime(shift.endTime) : 'لم تنته',
         shift.userName,
-        shift.totalSales.toFixed(2),
+        (shift.totalSales || 0).toFixed(2),
         shift.totalOrders,
-        shift.cashDrawer.closingAmount.toFixed(2),
+        (shift.cashDrawer?.closingAmount || 0).toFixed(2),
         shift.status === 'active' ? 'نشطة' : 'مكتملة'
       ])
     ].map(row => row.join(',')).join('\n');
@@ -1008,7 +1193,7 @@ const ShiftManager = () => {
                 <DollarSign className="h-4 w-4 text-green-400" />
                 <span className="text-sm text-gray-300">إجمالي المبيعات</span>
               </div>
-              <p className="text-white font-semibold">${currentShift.totalSales.toFixed(2)}</p>
+              <p className="text-white font-semibold">${(((activeDetails?.totalSales || 0) - (activeDetails?.totalRefunds || 0)) || 0).toFixed(2)}</p>
             </div>
 
             <div className="bg-white bg-opacity-10 rounded-lg p-4">
@@ -1016,7 +1201,7 @@ const ShiftManager = () => {
                 <TrendingUp className="h-4 w-4 text-purple-400" />
                 <span className="text-sm text-gray-300">عدد الطلبات</span>
               </div>
-              <p className="text-white font-semibold">{currentShift.totalOrders}</p>
+              <p className="text-white font-semibold">{activeSalesList?.length || currentShift.sales?.length || 0}</p>
             </div>
           </div>
 
@@ -1112,7 +1297,7 @@ const ShiftManager = () => {
                     </td>
                     <td className="py-3 px-4 text-sm text-white">{shift.userName}</td>
                     <td className="py-3 px-4 text-sm text-green-400 font-semibold">
-                      ${shift.totalSales.toFixed(2)}
+                      ${(shift.totalSales || 0).toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-sm text-white">{shift.totalOrders}</td>
                     <td className="py-3 px-4 text-sm">

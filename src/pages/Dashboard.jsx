@@ -14,6 +14,7 @@ import {
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
+import storageOptimizer from '../utils/storageOptimizer.js';
 import { formatDate, formatTimeOnly, formatWeekday, formatDateTime, getCurrentDate, getLocalDateString, getLocalDateFormatted, formatDateToDDMMYYYY } from '../utils/dateUtils.js';
 
 // مكون Tooltip مخصص لتوزيع المبيعات
@@ -47,7 +48,7 @@ const Dashboard = () => {
   const analyzeRealData = () => {
       try {
         // تحليل المبيعات
-        const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const sales = storageOptimizer.get('sales', []);
         const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
         const totalOrders = sales.length;
         
@@ -61,7 +62,7 @@ const Dashboard = () => {
         const totalCustomers = customerMap.size;
         
         // تحليل المنتجات
-        const products = JSON.parse(localStorage.getItem('products') || '[]');
+        const products = storageOptimizer.get('products', []);
         const totalProducts = products.length;
         
         // تحليل المنتجات منخفضة المخزون
@@ -275,7 +276,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 ipad-grid ipad-pro-grid gap-2 md:gap-4 lg:gap-6">
           <div className="glass-card hover-lift animate-fadeInUp group cursor-pointer p-4 md:p-6 lg:p-8" style={{animationDelay: '0.1s'}}>
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">
@@ -346,7 +347,7 @@ const Dashboard = () => {
       </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 ipad-grid ipad-pro-grid gap-4 md:gap-6">
           {/* Daily Sales Chart */}
           <div className="glass-card hover-lift animate-fadeInLeft" style={{animationDelay: '0.5s'}}>
                 <div className="flex items-center justify-between mb-6">
@@ -379,44 +380,44 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Sales Distribution */}
+          {/* Delivery Notifications moved here instead of sales distribution */}
           <div className="glass-card hover-lift animate-fadeInRight" style={{animationDelay: '0.6s'}}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-white">توزيع المبيعات</h3>
-                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
-                    <PieChart className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <RechartsPieChart>
-                <Pie
-                  data={salesDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {salesDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {salesDistributionData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-white font-medium">{item.name}</span>
-                </div>
-                <span className="font-semibold text-white">{item.value}%</span>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">تنبيهات الاستلام</h3>
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg animate-pulse-custom">
+                <Package className="h-6 w-6 text-white" />
               </div>
-            ))}
+            </div>
+            <div className="space-y-4">
+              {deliveryNotifications.length > 0 ? (
+                deliveryNotifications.map((order, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 group border border-blue-500 border-opacity-30">
+                    <div>
+                      <p className="font-semibold text-white group-hover:text-blue-200 transition-colors">
+                        {order.customer?.name || 'عميل غير محدد'}
+                      </p>
+                      <p className="text-sm text-blue-200">
+                        {order.customer?.phone || 'لا يوجد رقم هاتف'}
+                      </p>
+                      <p className="text-xs text-blue-300">فاتورة رقم: {order.id}</p>
+                      <p className="text-xs text-blue-400">تاريخ الاستلام: {formatDateToDDMMYYYY(order.downPayment?.deliveryDate)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-blue-300">عربون: {order.downPayment?.amount || 0} جنيه</p>
+                      <p className="text-sm text-yellow-300">متبقي: {(order.total - (order.downPayment?.amount || 0)).toFixed(2)} جنيه</p>
+                      <p className="text-xs text-blue-400 bg-blue-500 bg-opacity-30 px-2 py-1 rounded-full">استلام اليوم</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-400">لا توجد طلبات استلام اليوم</p>
+                  <p className="text-xs text-gray-500 mt-2">اليوم: {getLocalDateFormatted()}</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
       </div>
 
       {/* Revenue Chart */}
@@ -446,8 +447,8 @@ const Dashboard = () => {
         </ResponsiveContainer>
       </div>
 
-        {/* Bottom Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Bottom Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 ipad-grid ipad-pro-grid gap-6">
           {/* Recent Orders */}
           <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.7s'}}>
             <div className="flex items-center justify-between mb-6">
@@ -472,59 +473,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Delivery Notifications */}
-          <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '0.8s'}}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">تنبيهات الاستلام</h3>
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg animate-pulse-custom">
-                <Package className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div className="space-y-4">
-              {deliveryNotifications.length > 0 ? (
-                deliveryNotifications.map((order, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-blue-500 bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-300 group border border-blue-500 border-opacity-30">
-                    <div>
-                      <p className="font-semibold text-white group-hover:text-blue-200 transition-colors">
-                        {order.customer?.name || 'عميل غير محدد'}
-                      </p>
-                      <p className="text-sm text-blue-200">
-                        {order.customer?.phone || 'لا يوجد رقم هاتف'}
-                      </p>
-                      <p className="text-xs text-blue-300">
-                        فاتورة رقم: {order.id}
-                      </p>
-                      <p className="text-xs text-blue-400">
-                        تاريخ الاستلام: {formatDateToDDMMYYYY(order.downPayment?.deliveryDate)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg text-blue-300">
-                        عربون: {order.downPayment?.amount || 0} جنيه
-                      </p>
-                      <p className="text-sm text-yellow-300">
-                        متبقي: {(order.total - (order.downPayment?.amount || 0)).toFixed(2)} جنيه
-                      </p>
-                      <p className="text-xs text-blue-400 bg-blue-500 bg-opacity-30 px-2 py-1 rounded-full">
-                        استلام اليوم
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-400">لا توجد طلبات استلام اليوم</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    اليوم: {getLocalDateFormatted()}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    تنسيق: يوم/شهر/سنة (ميلادي)
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Delivery Notifications removed here (تم نقلها لأعلى) */}
 
           {/* Low Stock Alert */}
           <div className="glass-card hover-lift animate-fadeInUp" style={{animationDelay: '1.0s'}}>

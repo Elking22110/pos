@@ -545,7 +545,7 @@ const Products = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-6 xl:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 ipad-grid ipad-pro-grid gap-3 md:gap-4 lg:gap-6 xl:gap-8">
           <div className="glass-card hover-lift group cursor-pointer p-4 md:p-6 lg:p-8">
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex-1">

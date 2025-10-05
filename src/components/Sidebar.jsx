@@ -39,7 +39,7 @@ const Sidebar = () => {
   });
 
   return (
-        <div className="w-64 md:w-72 lg:w-80 xl:w-84 text-white flex flex-col shadow-2xl relative overflow-y-auto flex-shrink-0 h-screen nav-enhanced pb-4">
+        <div className="w-64 md:w-72 lg:w-80 xl:w-84 ipad-sidebar ipad-pro-sidebar text-white flex flex-col shadow-2xl relative overflow-y-auto flex-shrink-0 h-screen nav-enhanced pb-4">
       
       {/* Header */}
       <div className="p-6 border-b border-purple-500 border-opacity-20 relative z-10">

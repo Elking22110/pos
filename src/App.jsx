@@ -32,7 +32,7 @@ function App() {
         
         // تنظيف البيانات الموجودة من التواريخ الهجرية
         cleanExistingData();
-        console.log('✅ تم تهيئة قاعدة البيانات بنجاح');
+        // تم تهيئة قاعدة البيانات بنجاح
       } catch (error) {
         console.error('❌ خطأ في تهيئة قاعدة البيانات:', error);
       }
@@ -48,7 +48,7 @@ function App() {
           phone: '01234567890',
           role: 'admin',
           status: 'active',
-          password: btoa('admin123'),
+          password: btoa('Admin@2024!'), // كلمة مرور أقوى
           createdAt: getCurrentDate(),
           lastLogin: getCurrentDate()
         },
@@ -59,7 +59,7 @@ function App() {
           phone: '01234567891',
           role: 'manager',
           status: 'active',
-          password: btoa('sara123'),
+          password: btoa('Sara@2024!'), // كلمة مرور أقوى
           createdAt: getCurrentDate(),
           lastLogin: getCurrentDate()
         },
@@ -70,7 +70,7 @@ function App() {
           phone: '01234567892',
           role: 'cashier',
           status: 'active',
-          password: btoa('mohamed123'),
+          password: btoa('Mohamed@2024!'), // كلمة مرور أقوى
           createdAt: getCurrentDate(),
           lastLogin: getCurrentDate()
         },
@@ -81,7 +81,7 @@ function App() {
           phone: '01234567893',
           role: 'cashier',
           status: 'active',
-          password: btoa('nora123'),
+          password: btoa('Nora@2024!'), // كلمة مرور أقوى
           createdAt: getCurrentDate(),
           lastLogin: getCurrentDate()
         },
@@ -92,14 +92,14 @@ function App() {
           phone: '01234567894',
           role: 'manager',
           status: 'active',
-          password: btoa('khaled123'),
+          password: btoa('Khaled@2024!'), // كلمة مرور أقوى
           createdAt: getCurrentDate(),
           lastLogin: getCurrentDate()
         }
       ];
       
       localStorage.setItem('users', JSON.stringify(defaultUsers));
-      console.log('✅ تم إعادة تعيين المستخدمين الافتراضيين');
+      // تم إعادة تعيين المستخدمين الافتراضيين
     };
     
     initDatabase();
@@ -109,7 +109,7 @@ function App() {
       if (!Array.isArray(existingUsers) || existingUsers.length === 0) {
         resetUsers();
       } else {
-        console.log('✅ تم العثور على مستخدمين محفوظين - لن يتم إعادة تعيينهم');
+        // تم العثور على مستخدمين محفوظين - لن يتم إعادة تعيينهم
       }
     } catch (e) {
       // في حال كانت البيانات تالفة، نعيد ضبطها مرة واحدة
@@ -212,13 +212,61 @@ function App() {
     observerManager.stopAll();
   }, []);
 
+  // تحديث تلقائي للتنقل/البيانات عند بدء/إنهاء الوردية بدون رفرش يدوي
+  useEffect(() => {
+    const onShiftStart = () => {
+      try {
+        // إعادة تحميل بيانات الصفحة الحالية بشكل لطيف
+        window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'shift' } }));
+      } catch(_) {}
+      // إعادة تحميل كاملة لضمان تطبيق جميع التبعيات عبر الصفحات
+      try {
+        const key = 'lastShiftAutoReload';
+        const now = Date.now();
+        const prev = Number(sessionStorage.getItem(key) || 0);
+        if (now - prev > 500) {
+          sessionStorage.setItem(key, String(now));
+          setTimeout(() => { window.location.reload(); }, 150);
+        }
+      } catch(_) {}
+    };
+    const onShiftEnd = () => {
+      try {
+        window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'shift' } }));
+      } catch(_) {}
+      // إن كنا على صفحة نقطة البيع، انتقل للوحة التحكم لأن الوردية انتهت
+      try {
+        const active = JSON.parse(localStorage.getItem('activeShift') || 'null');
+        if (!active || active.status !== 'active') {
+          navigate('/');
+        }
+      } catch(_) {}
+      // إعادة تحميل كاملة لضمان اختفاء البيانات المرتبطة بالوردية فوراً من كل الصفحات
+      try {
+        const key = 'lastShiftAutoReload';
+        const now = Date.now();
+        const prev = Number(sessionStorage.getItem(key) || 0);
+        if (now - prev > 500) {
+          sessionStorage.setItem(key, String(now));
+          setTimeout(() => { window.location.reload(); }, 150);
+        }
+      } catch(_) {}
+    };
+    window.addEventListener('shiftStarted', onShiftStart);
+    window.addEventListener('shiftEnded', onShiftEnd);
+    return () => {
+      window.removeEventListener('shiftStarted', onShiftStart);
+      window.removeEventListener('shiftEnded', onShiftEnd);
+    };
+  }, [navigate]);
+
   return (
     <DataLoader>
       <AuthProvider>
         <NotificationProvider>
           <div className="flex h-screen overflow-hidden bg-gray-900">
             <Sidebar />
-            <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 max-w-full">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 max-w-full ipad-main-content ipad-pro-main-content">
             <Routes>
               <Route path="/" element={
                 <ProtectedRoute>

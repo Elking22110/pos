@@ -218,7 +218,51 @@ body::before {
   }
 }
 
-@media (min-width: 1024px) {
+/* تحسينات خاصة بالآيباد */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .pos-product-card {
+    height: 220px; /* ارتفاع أكبر للآيباد */
+    padding: 16px;
+  }
+  
+  .pos-product-card .product-title {
+    height: 50px;
+    font-size: 0.9rem;
+  }
+  
+  .pos-product-card .product-details {
+    height: 85px;
+  }
+  
+  .pos-product-card .product-icon {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* تحسينات خاصة بالآيباد برو */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .pos-product-card {
+    height: 240px; /* ارتفاع أكبر للآيباد برو */
+    padding: 20px;
+  }
+  
+  .pos-product-card .product-title {
+    height: 55px;
+    font-size: 1rem;
+  }
+  
+  .pos-product-card .product-details {
+    height: 95px;
+  }
+  
+  .pos-product-card .product-icon {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+@media (min-width: 1366px) {
   .pos-product-card {
     height: 200px; /* زيادة الارتفاع */
   }
@@ -402,6 +446,29 @@ body::before {
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+/* تحسينات للشاشات الكبيرة جداً */
+@media (min-width: 1367px) {
+  .large-screen-responsive {
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  
+  .large-screen-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+  }
+  
+  .large-screen-text {
+    font-size: 1.25rem;
+  }
+  
+  .large-screen-button {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
 }
 
 .animate-glow {
@@ -746,6 +813,121 @@ body::before {
   }
 }
 
+/* تحسينات خاصة بالآيباد */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* تحسينات للآيباد العادي */
+  .ipad-responsive {
+    padding: 12px;
+  }
+  
+  .ipad-text {
+    font-size: 16px;
+  }
+  
+  .ipad-button {
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+  
+  .ipad-card {
+    border-radius: 16px;
+    padding: 20px;
+  }
+  
+  .ipad-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .ipad-sidebar {
+    width: 280px;
+  }
+  
+  .ipad-main-content {
+    margin-left: 280px;
+    padding: 20px;
+  }
+}
+
+/* تحسينات خاصة بالآيباد برو */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .ipad-pro-responsive {
+    padding: 16px;
+  }
+  
+  .ipad-pro-text {
+    font-size: 18px;
+  }
+  
+  .ipad-pro-button {
+    min-height: 52px;
+    padding: 16px 24px;
+    font-size: 18px;
+  }
+  
+  .ipad-pro-card {
+    border-radius: 20px;
+    padding: 24px;
+  }
+  
+  .ipad-pro-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  
+  .ipad-pro-sidebar {
+    width: 300px;
+  }
+  
+  .ipad-pro-main-content {
+    margin-left: 300px;
+    padding: 24px;
+  }
+}
+
+/* تحسينات خاصة بالآيباد في الوضع الأفقي */
+@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+  .ipad-landscape-responsive {
+    padding: 12px;
+  }
+  
+  .ipad-landscape-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+  }
+  
+  .ipad-landscape-sidebar {
+    width: 250px;
+  }
+  
+  .ipad-landscape-main-content {
+    margin-left: 250px;
+    padding: 16px;
+  }
+}
+
+/* تحسينات خاصة بالآيباد في الوضع العمودي */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .ipad-portrait-responsive {
+    padding: 16px;
+  }
+  
+  .ipad-portrait-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  
+  .ipad-portrait-sidebar {
+    width: 280px;
+  }
+  
+  .ipad-portrait-main-content {
+    margin-left: 280px;
+    padding: 20px;
+  }
+}
+
 /* تحسينات خاصة بالشاشات اللمس */
 .touch-friendly {
   min-height: 44px;
@@ -766,6 +948,48 @@ body::before {
   padding: 12px 16px;
   font-size: 16px; /* منع التكبير في iOS */
   touch-action: manipulation;
+}
+
+/* تحسينات خاصة بالآيباد - أزرار أكبر */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .touch-button {
+    min-height: 52px;
+    min-width: 52px;
+    padding: 14px 18px;
+    font-size: 16px;
+  }
+  
+  .touch-input {
+    min-height: 48px;
+    padding: 14px 18px;
+    font-size: 16px;
+  }
+  
+  .touch-friendly {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* تحسينات خاصة بالآيباد برو - أزرار أكبر */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .touch-button {
+    min-height: 56px;
+    min-width: 56px;
+    padding: 16px 20px;
+    font-size: 18px;
+  }
+  
+  .touch-input {
+    min-height: 52px;
+    padding: 16px 20px;
+    font-size: 18px;
+  }
+  
+  .touch-friendly {
+    min-height: 52px;
+    min-width: 52px;
+  }
 }
 
 /* تحسينات للأزرار في الشاشات اللمس */
@@ -1015,6 +1239,29 @@ body::before {
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+/* تحسينات للشاشات الكبيرة جداً */
+@media (min-width: 1367px) {
+  .large-screen-responsive {
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  
+  .large-screen-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+  }
+  
+  .large-screen-text {
+    font-size: 1.25rem;
+  }
+  
+  .large-screen-button {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
 }
 
 .animate-float-delayed {
