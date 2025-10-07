@@ -808,19 +808,19 @@ const Reports = () => {
             .wrap { width: calc(58mm - 2mm); margin: 0 auto; }
             .num { font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace; }
             .header { text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #333; padding-bottom: 6px; }
-            .logo { width: 34mm; margin: 0 auto 4px; }
-            .logo img { display:block; max-width:100%; height:auto; }
-            .store-name { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
-            .store-info { font-size: 10px; color: #666; }
+            .store-name { font-size: 14px; font-weight: 800; margin-bottom: 4px; color:#000; }
+            .store-info { font-size: 10px; color: #000; }
             .invoice-info { margin: 6px 0 8px; font-size: 10px; }
             .items { margin: 8px 0; }
             table.items-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             table.items-table th, table.items-table td { border: 1px solid #000; padding: 5px 4px; font-size: 10px; color:#000; white-space: nowrap; }
-            table.items-table th { background: #f0f0f0; font-weight: 700; }
-            table.items-table th.name { width: 55%; }
-            table.items-table th.qty { width: 12%; text-align: center; }
-            table.items-table th.price { width: 15%; text-align: center; }
-            table.items-table th.total { width: 18%; text-align: center; }
+            table.items-table th { background: #f0f0f0; font-weight: 700; font-size: 9px; white-space: nowrap; word-break: normal; letter-spacing: 0; }
+            /* الرجوع للإعدادات الافتراضية للخلايا */
+            table.items-table td { font-size: 10px; line-height: 1.4; letter-spacing: 0; white-space: normal; word-break: break-word; }
+            table.items-table th.name { width: 50%; }
+            table.items-table th.qty { width: 16%; text-align: center; }
+            table.items-table th.price { width: 12%; text-align: center; }
+            table.items-table th.total { width: 22%; text-align: center; }
             table.items-table td.center { text-align: center; }
             .total { border-top: 1px solid #333; padding-top: 6px; margin-top: 8px; font-weight: 700; font-size: 9px; }
             .payment-details { margin: 8px 0; padding: 6px; background: #f5f5f5; border-radius: 3px; }
@@ -834,12 +834,8 @@ const Reports = () => {
         <body>
           <div class="wrap">
           <div class="header">
-            <div class="logo"><img id="reportStoreLogo" src="${(JSON.parse(localStorage.getItem('storeInfo')||'{}').logo) || (window.location.origin + '/favicon.svg')}" alt="logo" referrerpolicy="no-referrer" onerror="if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='${window.location.origin}/favicon.svg';} else { try { this.closest('.logo').style.display='none'; } catch(_) {} }" /></div>
-            <div class="store-name">${storeInfo.storeName || 'إبراهيم العراقي'}</div>
-            <div class="store-info">
-              ${storeInfo.storeAddress || 'شارع التحلية، الرياض'}<br>
-              ${storeInfo.storePhone || '+966501234567'}
-            </div>
+            <div class="store-name">إبراهيم العراقي</div>
+            <div class="store-info">01009970416</div>
           </div>
           
           <div class="invoice-info">
@@ -903,12 +899,10 @@ const Reports = () => {
           
           <div class="divider"></div>
           
-          <div class="footer">
+          <div class="footer" style="color:#000;">
             <div>شكراً لزيارتكم</div>
-            <div>${formatDateTime(new Date().toISOString())}</div>
-            <div style="margin-top: 10px; font-size: 9px;">
-              هذه فاتورة مطبوعة من نظام إدارة المبيعات
-            </div>
+            <div>هذه فاتوره مطبوعه من نظام ادارهه مبيعات  Elking</div>
+            <div>01553448631</div>
           </div>
           </div>
           <script>

@@ -686,8 +686,10 @@ const ShiftManager = () => {
                 font-weight: 600;
               }
               @media print {
-                body { background: white; padding: 0; }
-                .report-container { box-shadow: none; border: 1px solid #ccc; }
+                /* ضبط الطباعة على رولة 80mm */
+                @page { size: 80mm auto; margin: 1mm; }
+                html, body { width: 80mm; margin: 0; padding: 0; background: white; }
+                .report-container { width: calc(80mm - 2mm); margin: 0 auto; box-shadow: none; border: 1px solid #ccc; }
                 .print-btn { display: none; }
               }
             </style>

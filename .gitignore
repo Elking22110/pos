@@ -529,6 +529,25 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+# Electron specific
+release/
+app/
+out/
+dist_electron/
+
+# Electron build outputs
+*.exe
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.snap
+
+# Electron logs
+electron.log
+main.log
+renderer.log
+
 # Project specific ignores
 # Add any project-specific files or directories here
 # Example:

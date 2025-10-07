@@ -456,7 +456,7 @@ const POSMain = () => {
           }
           .logo { width: 34mm; margin: 0 auto 4px; }
           .logo img { display:block; max-width:100%; height:auto; }
-          .store-name { font-size: 14px; font-weight: 800; letter-spacing:.2px; }
+          .store-name { font-size: 14px; font-weight: 800; letter-spacing:.2px; color:#000; }
           .invoice-title { font-size: 13px; font-weight: 700; margin-top:3px; }
           .invoice-info { display:flex; justify-content:space-between; margin:6px 0 8px; font-size: 10px; }
           .customer-info {
@@ -476,7 +476,7 @@ const POSMain = () => {
           .products-table td {
             padding: 5px 4px;
             text-align: right;
-            border-bottom: 1px solid #000;
+            border: 1px solid #000; /* حدود أفقية ورأسية لإظهار الأعمدة */
             font-size: 10px;
             color: #000;
             white-space: nowrap;
@@ -485,13 +485,17 @@ const POSMain = () => {
             background: #f0f0f0;
             font-weight: 700;
             color: #000;
+            font-size: 9px; /* العودة للإعداد السابق */
+            white-space: nowrap; /* منع التفكك في العربية */
+            word-break: normal;
+            letter-spacing: 0;
           }
           .products-table .center { text-align:center; }
-          /* توسيع عمود الوصف وتقسيم الأعمدة */
-          .products-table th:nth-child(1), .products-table td:nth-child(1) { width: 55%; }
-          .products-table th:nth-child(2), .products-table td:nth-child(2) { width: 12%; text-align:center; }
-          .products-table th:nth-child(3), .products-table td:nth-child(3) { width: 15%; text-align:center; }
-          .products-table th:nth-child(4), .products-table td:nth-child(4) { width: 18%; text-align:center; }
+          /* إعادة توزيع الأعمدة لتكبير الكمية والإجمالي */
+          .products-table th:nth-child(1), .products-table td:nth-child(1) { width: 50%; }
+          .products-table th:nth-child(2), .products-table td:nth-child(2) { width: 16%; text-align:center; }
+          .products-table th:nth-child(3), .products-table td:nth-child(3) { width: 12%; text-align:center; }
+          .products-table th:nth-child(4), .products-table td:nth-child(4) { width: 22%; text-align:center; }
           .products-table tfoot td { font-weight:700; }
           .tax-row td { border-top: 1px solid #000; }
           .net-row td { border-top: 2px solid #000; font-size:11px; }
@@ -521,8 +525,8 @@ const POSMain = () => {
       <body>
         <div class="wrap">
         <div class="header">
-            <div class="logo"><img id="storeLogo" src="${logoSrc}" alt="logo" referrerpolicy="no-referrer" onerror="if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='${window.location.origin}/favicon.svg';} else { try { this.closest('.logo').style.display='none'; } catch(_) {} }" /></div>
            <div class="store-name">إبراهيم العراقي</div>
+          <div class="store-info" style="font-size:10px; color:#000; margin-top:2px;">01009970416</div>
           <div class="invoice-title">فاتورة البيع</div>
         </div>
         
@@ -552,8 +556,8 @@ const POSMain = () => {
               <tr>
                 <td>${item.name || 'منتج غير محدد'}</td>
                 <td class="center">${Number(item.quantity || 0)}</td>
-                <td class="center">${((Number(item.price) || 0)).toLocaleString('en-US')} ج</td>
-                <td class="center">${(((Number(item.price) || 0) * (Number(item.quantity) || 0))).toLocaleString('en-US')} ج</td>
+                <td class="center">${((Number(item.price) || 0)).toLocaleString('en-US')}</td>
+                <td class="center">${(((Number(item.price) || 0) * (Number(item.quantity) || 0))).toLocaleString('en-US')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -602,25 +606,19 @@ const POSMain = () => {
           </div>
         ` : ''}
         
-        <div class="footer">
+        <div class="footer" style="color:#000;">
           <div>شكراً لزيارتكم</div>
-          <div>متجر الكينج - خدمة عملاء متميزة</div>
+          <div>هذه فاتوره مطبوعه من نظام ادارهه مبيعات  Elking</div>
+          <div>01553448631</div>
         </div>
         </div>
         
         <script>
           // قطع الورق تلقائياً بعد الطباعة
-            window.onload = function() {
-            // انتظر حتى تُحمّل الصور قبل الطباعة
-              const logo = document.getElementById('storeLogo');
+          window.onload = function() {
               let printed = false;
               const doPrint = function(){ if (printed) return; printed = true; setTimeout(function(){ if (window.print) { window.print(); } }, 300); };
-            if (logo && !logo.complete) {
-              logo.addEventListener('load', doPrint);
-                logo.addEventListener('error', doPrint);
-            } else {
               doPrint();
-            }
             setTimeout(function() {
               // إرسال أوامر قطع الورق للطابعة الحرارية
                 // لا نكرر window.print هنا لضمان ظهور نافذة الطباعة مرة واحدة فقط
@@ -945,7 +943,7 @@ const POSMain = () => {
         </div>
 
         {/* المحتوى الرئيسي */}
-        <div className="flex gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
           {/* شبكة المنتجات */}
           <ProductGrid
             selectedCategory={selectedCategory}
@@ -960,7 +958,7 @@ const POSMain = () => {
           />
 
           {/* إدارة السلة والدفع */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 lg:gap-6">
             <CartManager
               cart={cart}
               setCart={setCart}

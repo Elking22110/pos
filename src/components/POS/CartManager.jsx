@@ -119,7 +119,7 @@ const CartManager = ({
   }, [notifySuccess]);
 
   return (
-    <div className="w-80 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl p-6 flex flex-col">
+    <div className="w-full sm:w-96 lg:w-80 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl p-6 flex flex-col">
       {/* عنوان السلة */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">

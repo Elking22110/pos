@@ -41,10 +41,10 @@ export default defineConfig({
     sourcemap: true,
     minify: 'esbuild',
     target: 'esnext',
+    // إعدادات خاصة بـ Electron
+    base: './',
+    assetsDir: 'assets',
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html')
-      },
       output: {
         // تقسيم الكود
         manualChunks: {
@@ -60,6 +60,8 @@ export default defineConfig({
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     },
+    // إعدادات خاصة بـ Electron
+    emptyOutDir: true,
     // تحسينات CSS
     cssCodeSplit: true,
     cssMinify: true

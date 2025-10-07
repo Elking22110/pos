@@ -109,17 +109,23 @@ export const AuthProvider = ({ children }) => {
           userEmail = user.email;
         }
       } else {
-        // التحقق من المستخدمين الافتراضيين (للتوافق مع النظام القديم)
+        // التحقق من المستخدمين الافتراضيين
         const validCredentials = {
-          'admin': 'Admin@2024!',
-          'cashier': 'Cashier@2024!',
-          'manager': 'Manager@2024!'
+          'HassanElking': '200396',
+          'admin': 'admin123',
+          'cashier': 'cashier123',
+          'manager': 'manager123'
         };
         
         if (validCredentials[username] && validCredentials[username] === password) {
           isValidUser = true;
-          userRole = username === 'admin' ? 'admin' : username === 'manager' ? 'manager' : 'cashier';
-          userEmail = `${username}@mensfashion.com`;
+          if (username === 'HassanElking') {
+            userRole = 'admin';
+            userEmail = 'hassan@elking.com';
+          } else {
+            userRole = username === 'admin' ? 'admin' : username === 'manager' ? 'manager' : 'cashier';
+            userEmail = `${username}@mensfashion.com`;
+          }
         }
       }
       
