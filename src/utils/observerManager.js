@@ -1,4 +1,4 @@
-// نظام مركزي لإدارة جميع المراقبين لتجنب التداخل والتحديثات المتكررة
+// نظام مركزي لإدارة جميع المراقبين والأحداث لتجنب التداخل والتحديثات المتكررة
 class ObserverManager {
   constructor() {
     this.observers = new Map();
@@ -6,6 +6,39 @@ class ObserverManager {
     this.timeouts = new Map();
     this.isInitialized = false;
     this.isEnabled = true;
+    
+    // Event Bus System
+    this.subscribers = new Map();
+    this.broadcastChannel = null;
+    this.debounceTimers = new Map();
+    
+    // Initialize broadcast channel if supported
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.broadcastChannel = new BroadcastChannel('pos-app-sync');
+        this.broadcastChannel.onmessage = (event) => {
+          const { topic, payload } = event.data;
+          this.notifySubscribers(topic, payload, false); // false = don't rebroadcast
+        };
+      } catch (e) {
+        console.warn('BroadcastChannel not available:', e);
+      }
+    }
+    
+    // Listen to storage events for cross-tab sync
+    window.addEventListener('storage', (e) => {
+      if (e.key?.startsWith('__evt__:')) {
+        const topic = e.key.replace('__evt__:', '');
+        if (e.newValue) {
+          try {
+            const data = JSON.parse(e.newValue);
+            this.notifySubscribers(topic, data.payload, false);
+          } catch (err) {
+            console.error('Error parsing storage event:', err);
+          }
+        }
+      }
+    });
   }
 
   // تهيئة النظام
@@ -176,8 +209,131 @@ class ObserverManager {
       isEnabled: this.isEnabled,
       observersCount: this.observers.size,
       intervalsCount: this.intervals.size,
-      timeoutsCount: this.timeouts.size
+      timeoutsCount: this.timeouts.size,
+      subscribersCount: this.subscribers.size
     };
+  }
+
+  // ============ Event Bus Methods ============
+  
+  // Subscribe to an event topic
+  subscribe(topic, handler) {
+    if (!this.subscribers.has(topic)) {
+      this.subscribers.set(topic, new Set());
+    }
+    this.subscribers.get(topic).add(handler);
+    
+    // Return unsubscribe function
+    return () => {
+      const handlers = this.subscribers.get(topic);
+      if (handlers) {
+        handlers.delete(handler);
+        if (handlers.size === 0) {
+          this.subscribers.delete(topic);
+        }
+      }
+    };
+  }
+  
+  // Unsubscribe from an event topic
+  unsubscribe(topic, handler) {
+    const handlers = this.subscribers.get(topic);
+    if (handlers) {
+      handlers.delete(handler);
+      if (handlers.size === 0) {
+        this.subscribers.delete(topic);
+      }
+    }
+  }
+  
+  // Publish an event
+  publish(topic, payload = {}, options = {}) {
+    const { debounce = 0 } = options;
+    
+    // Handle debouncing if specified
+    if (debounce > 0) {
+      if (this.debounceTimers.has(topic)) {
+        clearTimeout(this.debounceTimers.get(topic));
+      }
+      
+      const timer = setTimeout(() => {
+        this.debounceTimers.delete(topic);
+        this.doPublish(topic, payload);
+      }, debounce);
+      
+      this.debounceTimers.set(topic, timer);
+    } else {
+      this.doPublish(topic, payload);
+    }
+  }
+  
+  // Internal publish implementation
+  doPublish(topic, payload) {
+    // Notify local subscribers
+    this.notifySubscribers(topic, payload, true);
+    
+    // Broadcast to other tabs/windows
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage({ topic, payload });
+      } catch (e) {
+        console.warn('Failed to broadcast message:', e);
+      }
+    }
+    
+    // Fallback to localStorage for cross-tab sync
+    try {
+      const eventKey = `__evt__:${topic}`;
+      const eventData = JSON.stringify({ 
+        payload, 
+        timestamp: Date.now(),
+        origin: window.location.href
+      });
+      localStorage.setItem(eventKey, eventData);
+      
+      // Clean up old event keys after a short delay
+      setTimeout(() => {
+        localStorage.removeItem(eventKey);
+      }, 500);
+    } catch (e) {
+      console.warn('Failed to sync via localStorage:', e);
+    }
+  }
+  
+  // Notify subscribers
+  notifySubscribers(topic, payload, isLocal) {
+    const handlers = this.subscribers.get(topic);
+    if (handlers && handlers.size > 0) {
+      handlers.forEach(handler => {
+        try {
+          handler(payload, { topic, isLocal });
+        } catch (e) {
+          console.error(`Error in event handler for ${topic}:`, e);
+        }
+      });
+    }
+    
+    // Also notify wildcard subscribers
+    const wildcardHandlers = this.subscribers.get('*');
+    if (wildcardHandlers && wildcardHandlers.size > 0) {
+      wildcardHandlers.forEach(handler => {
+        try {
+          handler(payload, { topic, isLocal });
+        } catch (e) {
+          console.error(`Error in wildcard handler for ${topic}:`, e);
+        }
+      });
+    }
+  }
+  
+  // Clear all subscriptions for a topic
+  clearTopic(topic) {
+    this.subscribers.delete(topic);
+  }
+  
+  // Clear all subscriptions
+  clearAllSubscriptions() {
+    this.subscribers.clear();
   }
 }
 
@@ -203,4 +359,23 @@ export const observerUtils = {
   stop: () => observerManager.stopAll(),
   restart: () => observerManager.restart(),
   status: () => observerManager.getStatus()
+};
+
+// Export Event Bus functions
+export const subscribe = (topic, handler) => observerManager.subscribe(topic, handler);
+export const unsubscribe = (topic, handler) => observerManager.unsubscribe(topic, handler);
+export const publish = (topic, payload, options) => observerManager.publish(topic, payload, options);
+
+// Standard event topics
+export const EVENTS = {
+  PRODUCTS_CHANGED: 'products:changed',
+  CATEGORIES_CHANGED: 'categories:changed',
+  CUSTOMERS_CHANGED: 'customers:changed',
+  SHIFTS_CHANGED: 'shifts:changed',
+  SETTINGS_CHANGED: 'settings:changed',
+  POS_CART_CHANGED: 'pos:cart:changed',
+  INVOICES_CHANGED: 'invoices:changed',
+  USERS_CHANGED: 'users:changed',
+  DATA_IMPORTED: 'data:imported',
+  DATA_BACKED_UP: 'data:backed_up'
 };

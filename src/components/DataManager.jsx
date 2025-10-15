@@ -22,6 +22,7 @@ import {
   Package,
   ShoppingCart
 } from 'lucide-react';
+import { publish, EVENTS } from '../utils/observerManager';
 
 const DataManager = () => {
   const { user, hasPermission } = useAuth();
@@ -150,21 +151,19 @@ const DataManager = () => {
 
     setLoading(true);
     try {
-      const text = await file.text();
-      let data;
-      
-      if (file.name.endsWith('.csv')) {
-        // تحويل CSV إلى JSON (مبسط)
-        setMessage({ type: 'error', text: 'استيراد CSV غير مدعوم حالياً. يرجى استخدام ملف JSON' });
+      if (/\.json$/i.test(file.name)) {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await databaseManager.importData(data);
+        setMessage({ type: 'success', text: 'تم استيراد البيانات بنجاح' });
+        try { publish(EVENTS.DATA_IMPORTED, ['products','categories','customers','sales','users','settings']); } catch(_) {}
+        loadStats();
         return;
-      } else {
-        data = JSON.parse(text);
       }
-      
-      await databaseManager.importData(data);
-      setMessage({ type: 'success', text: 'تم استيراد البيانات بنجاح' });
-      loadStats();
+
+      setMessage({ type: 'error', text: 'صيغة الملف غير مدعومة. استخدم JSON فقط' });
     } catch (error) {
+      console.error('Import error:', error);
       setMessage({ type: 'error', text: 'فشل في استيراد البيانات' });
     } finally {
       setLoading(false);
@@ -216,6 +215,7 @@ const DataManager = () => {
       
       await databaseManager.importSettings(settingsData);
       setMessage({ type: 'success', text: 'تم استيراد الإعدادات بنجاح' });
+      try { publish(EVENTS.DATA_IMPORTED, ['settings']); } catch(_) {}
       loadStats();
     } catch (error) {
       setMessage({ type: 'error', text: 'فشل في استيراد الإعدادات' });
@@ -237,6 +237,7 @@ const DataManager = () => {
         setMessage({ type: 'success', text: 'تم إنشاء نسخة احتياطية بنجاح' });
         loadBackups();
         loadStats();
+        try { publish(EVENTS.DATA_BACKED_UP, { id: backup.id }); } catch(_) {}
       } else {
         setMessage({ type: 'error', text: 'فشل في إنشاء النسخة الاحتياطية' });
       }
@@ -538,7 +539,7 @@ const DataManager = () => {
               <div className="relative">
                 <input
                   type="file"
-                  accept=".json,.csv"
+                  accept=".json"
                   onChange={handleImport}
                   disabled={loading}
                   className="hidden"
@@ -554,7 +555,7 @@ const DataManager = () => {
                   }}
                 >
                   <Upload className="h-6 w-6 mr-3" />
-                  <span className="font-semibold text-lg">استيراد جميع البيانات</span>
+                  <span className="font-semibold text-lg">استيراد ملف JSON</span>
                 </label>
               </div>
               

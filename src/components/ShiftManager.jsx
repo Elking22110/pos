@@ -15,6 +15,7 @@ import {
   Trash2
 } from 'lucide-react';
 import soundManager from '../utils/soundManager.js';
+import { publish, subscribe, EVENTS } from '../utils/observerManager';
 import { formatDate, formatTimeOnly, formatDateOnly, formatDateTime, getCurrentDate } from '../utils/dateUtils.js';
 import { getNextShiftId } from '../utils/sequence.js';
 
@@ -100,10 +101,13 @@ const ShiftManager = () => {
     window.addEventListener('dataUpdated', onDataUpdated);
     window.addEventListener('shiftStarted', reload);
     window.addEventListener('shiftEnded', reload);
+    // الاشتراك بقناة الوردية الموحدة
+    const unsubscribe = typeof subscribe === 'function' ? subscribe(EVENTS.SHIFTS_CHANGED, reload) : null;
     return () => {
       window.removeEventListener('dataUpdated', onDataUpdated);
       window.removeEventListener('shiftStarted', reload);
       window.removeEventListener('shiftEnded', reload);
+      if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
 
@@ -132,6 +136,7 @@ const ShiftManager = () => {
 
     setCurrentShift(newShift);
     localStorage.setItem('activeShift', JSON.stringify(newShift));
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'start', shift: newShift }); } catch(_) {}
     try { window.dispatchEvent(new CustomEvent('shiftStarted', { detail: { shiftId: newShift.id } })); } catch(_) {}
     
     // حفظ الوردية في قاعدة البيانات أيضاً للحماية من فقدان البيانات
@@ -193,18 +198,24 @@ const ShiftManager = () => {
     // إزالة فواتير الوردية النشطة من قائمة المبيعات العامة (الاحتفاظ بغير المكتمل فقط)
     try {
       const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
-      const cleaned = allSales.filter(inv => {
-        // أبقِ الفواتير غير المكتملة (بعربون ولم تُسدَّد كاملة)
-        const isPartial = inv?.downPayment?.enabled && ((inv.total || 0) - (parseFloat(inv.downPayment.amount) || 0) > 0);
-        // إن كانت تخص هذه الوردية وتحسب مكتملة/مرتجع، تُزال من عرض الوردية النشطة في التقارير
-        const belongsToShift = inv.shiftId ? (inv.shiftId === currentShift.id) : (inv.shiftId === currentShift?.id);
-        return !belongsToShift || isPartial;
+      // بعد إنهاء الوردية: نُبقي فقط الفواتير غير المكتملة (مهما كان shiftId)
+      const partialOnly = (allSales || []).filter(inv => {
+        const hasDown = inv?.downPayment?.enabled;
+        if (!hasDown) return false; // مكتملة تُحذف
+        const remaining = (inv.downPayment?.remaining != null)
+          ? Number(inv.downPayment.remaining) || 0
+          : (Number(inv.total) || 0) - (Number(inv.downPayment?.amount) || 0);
+        return remaining > 0; // فقط غير المكتملة
       });
-      localStorage.setItem('sales', JSON.stringify(cleaned));
+      localStorage.setItem('sales', JSON.stringify(partialOnly));
+      try { window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'sales' } })); } catch(_) {}
+      try { publish(EVENTS.INVOICES_CHANGED, { type: 'cleanup_after_shift_end_partial_only' }); } catch(_) {}
     } catch (_) {}
 
 
     localStorage.removeItem('activeShift');
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'end', shift: updatedShift }); } catch(_) {}
+    try { publish(EVENTS.INVOICES_CHANGED, { type: 'cleanup_after_shift_end' }); } catch(_) {}
     
     // إرسال إشارة لإعادة تعيين بيانات نقطة البيع
     window.dispatchEvent(new CustomEvent('shiftEnded', { 
@@ -1056,6 +1067,7 @@ const ShiftManager = () => {
 
     setCurrentShift(updatedShift);
     localStorage.setItem('activeShift', JSON.stringify(updatedShift));
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'update', field: 'cashDrawer', shift: updatedShift }); } catch(_) {}
   };
 
   // إضافة عملية بيع للوردية
@@ -1071,6 +1083,7 @@ const ShiftManager = () => {
 
     setCurrentShift(updatedShift);
     localStorage.setItem('activeShift', JSON.stringify(updatedShift));
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'sale:add', shift: updatedShift }); } catch(_) {}
   };
 
   // تحديث ملاحظات الوردية
@@ -1084,6 +1097,7 @@ const ShiftManager = () => {
 
     setCurrentShift(updatedShift);
     localStorage.setItem('activeShift', JSON.stringify(updatedShift));
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'update', field: 'notes', shift: updatedShift }); } catch(_) {}
   };
 
   // حذف وردية
@@ -1103,6 +1117,7 @@ const ShiftManager = () => {
       const updatedShifts = shifts.filter(shift => shift.id !== shiftId);
       setShifts(updatedShifts);
       localStorage.setItem('shifts', JSON.stringify(updatedShifts));
+    try { publish(EVENTS.SHIFTS_CHANGED, { type: 'delete', shiftId, shifts: updatedShifts }); } catch(_) {}
       
       soundManager.play('delete'); // تشغيل صوت الحذف
       setMessage(`تم حذف وردية ${shiftToDelete?.userName || 'غير محدد'} بنجاح!`);
@@ -1291,7 +1306,7 @@ const ShiftManager = () => {
                     // إزالة الورديات المكررة بناءً على المعرف
                     index === self.findIndex(s => s.id === shift.id)
                   )
-                  .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+                  .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
                   .map((shift) => (
                   <tr key={shift.id} className="border-b border-gray-700 hover:bg-white hover:bg-opacity-5">
                     <td className="py-3 px-4 text-sm text-white">

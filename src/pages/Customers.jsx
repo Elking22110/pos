@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import soundManager from '../utils/soundManager.js';
 import { formatDate, formatTimeOnly, getCurrentDate } from '../utils/dateUtils.js';
+import { publish, subscribe, EVENTS } from '../utils/observerManager';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -34,11 +35,12 @@ const Customers = () => {
 
   const statuses = ['الكل', 'نشط', 'VIP', 'جديد', 'غير نشط'];
 
-  // تحليل البيانات الحقيقية من المبيعات
+  // تحليل البيانات الحقيقية من المبيعات + دمج مع العملاء المحفوظين لضمان عدم التصفير بعد نهاية الوردية
   useEffect(() => {
     const analyzeCustomersFromSales = () => {
       try {
         const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const savedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
         console.log('تحليل العملاء من المبيعات:', sales.length, 'مبيعات');
         
         const customerMap = new Map();
@@ -81,7 +83,37 @@ const Customers = () => {
           }
         });
         
-        const customersList = Array.from(customerMap.values());
+        let customersList = Array.from(customerMap.values());
+        
+        // دمج مع العملاء المحفوظين مسبقاً لضمان الاستمرارية بعد نهاية الوردية
+        if (Array.isArray(savedCustomers) && savedCustomers.length > 0) {
+          const merged = new Map();
+          // أضف المحفوظين أولاً
+          savedCustomers.forEach(c => {
+            if (!c || !c.name) return;
+            merged.set(c.name, { ...c });
+          });
+          // دمج المحسوبين من المبيعات (تحديث الإجماليات وآخر زيارة)
+          customersList.forEach(c => {
+            const prev = merged.get(c.name);
+            if (!prev) {
+              merged.set(c.name, { ...c });
+            } else {
+              merged.set(c.name, {
+                ...prev,
+                phone: prev.phone || c.phone,
+                email: prev.email || c.email,
+                address: prev.address || c.address,
+                totalSpent: Number(prev.totalSpent || 0) + Number(c.totalSpent || 0),
+                orders: Number(prev.orders || 0) + Number(c.orders || 0),
+                lastVisit: new Date(c.lastVisit) > new Date(prev.lastVisit) ? c.lastVisit : prev.lastVisit,
+                joinDate: new Date(c.joinDate) < new Date(prev.joinDate) ? c.joinDate : prev.joinDate,
+                status: prev.status || c.status
+              });
+            }
+          });
+          customersList = Array.from(merged.values());
+        }
         
         // تحديد حالة العميل بناءً على إجمالي المشتريات
         customersList.forEach(customer => {
@@ -97,15 +129,33 @@ const Customers = () => {
         });
         
         setCustomers(customersList);
+        try { localStorage.setItem('customers', JSON.stringify(customersList)); } catch(_) {}
         console.log('تم تحليل العملاء:', customersList.length, 'عميل');
         console.log('تفاصيل العملاء:', customersList);
         
       } catch (error) {
         console.error('خطأ في تحليل العملاء:', error);
-        setCustomers([]);
+        // احتياطي: لا تفرّغ القائمة، استخدم المحفوظين
+        try {
+          const saved = JSON.parse(localStorage.getItem('customers') || '[]');
+          setCustomers(Array.isArray(saved) ? saved : []);
+        } catch(_) {
+          setCustomers([]);
+        }
       }
     };
     
+    // تحميل مبدئي من المحفوظين إذا لم توجد مبيعات
+    try {
+      const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+      if (!Array.isArray(sales) || sales.length === 0) {
+        const saved = JSON.parse(localStorage.getItem('customers') || '[]');
+        if (Array.isArray(saved) && saved.length > 0) {
+          setCustomers(saved);
+        }
+      }
+    } catch(_) {}
+
     analyzeCustomersFromSales();
     
     // مراقبة تغييرات المبيعات
@@ -114,9 +164,13 @@ const Customers = () => {
     };
     
     window.addEventListener('storage', handleStorageChange);
+    const unsubInvoices = typeof subscribe === 'function' ? subscribe(EVENTS.INVOICES_CHANGED, analyzeCustomersFromSales) : null;
+    const unsubShifts = typeof subscribe === 'function' ? subscribe(EVENTS.SHIFTS_CHANGED, analyzeCustomersFromSales) : null;
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      if (typeof unsubInvoices === 'function') unsubInvoices();
+      if (typeof unsubShifts === 'function') unsubShifts();
     };
   }, []);
 
@@ -139,7 +193,19 @@ const Customers = () => {
         joinDate: getCurrentDate().split('T')[0],
         status: 'جديد'
       };
-      setCustomers([...customers, customer]);
+      const updatedCustomers = [...customers, customer];
+      setCustomers(updatedCustomers);
+      
+      // حفظ العملاء في localStorage
+      localStorage.setItem('customers', JSON.stringify(updatedCustomers));
+      
+      // نشر حدث تغيير العملاء
+      publish(EVENTS.CUSTOMERS_CHANGED, {
+        type: 'create',
+        customer: customer,
+        customers: updatedCustomers
+      });
+      
       setNewCustomer({
         name: '',
         phone: '',
@@ -167,7 +233,19 @@ const Customers = () => {
         ...editingCustomer,
         ...newCustomer
       };
-      setCustomers(customers.map(c => c.id === editingCustomer.id ? updatedCustomer : c));
+      const updatedCustomers = customers.map(c => c.id === editingCustomer.id ? updatedCustomer : c);
+      setCustomers(updatedCustomers);
+      
+      // حفظ العملاء في localStorage
+      localStorage.setItem('customers', JSON.stringify(updatedCustomers));
+      
+      // نشر حدث تغيير العملاء
+      publish(EVENTS.CUSTOMERS_CHANGED, {
+        type: 'update',
+        customer: updatedCustomer,
+        customers: updatedCustomers
+      });
+      
       setEditingCustomer(null);
       setNewCustomer({
         name: '',
@@ -181,7 +259,18 @@ const Customers = () => {
 
   const handleDeleteCustomer = (id) => {
     if (window.confirm('هل أنت متأكد من حذف هذا العميل؟')) {
-      setCustomers(customers.filter(c => c.id !== id));
+      const updatedCustomers = customers.filter(c => c.id !== id);
+      setCustomers(updatedCustomers);
+      
+      // حفظ العملاء في localStorage
+      localStorage.setItem('customers', JSON.stringify(updatedCustomers));
+      
+      // نشر حدث تغيير العملاء
+      publish(EVENTS.CUSTOMERS_CHANGED, {
+        type: 'delete',
+        customerId: id,
+        customers: updatedCustomers
+      });
     }
   };
 
@@ -198,6 +287,34 @@ const Customers = () => {
   const topCustomers = customers
     .sort((a, b) => b.totalSpent - a.totalSpent)
     .slice(0, 5);
+  
+  // الاشتراك في أحداث تغيير العملاء من صفحات أخرى
+  useEffect(() => {
+    const reloadCustomers = () => {
+      const savedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
+      setCustomers(savedCustomers);
+      console.log('🔄 تم إعادة تحميل العملاء:', savedCustomers.length);
+    };
+    
+    // الاشتراك في أحداث تغيير العملاء
+    const unsubscribe = subscribe(EVENTS.CUSTOMERS_CHANGED, (payload) => {
+      console.log('📨 استقبال حدث تغيير العملاء:', payload);
+      reloadCustomers();
+    });
+    
+    // الاشتراك في أحداث استيراد البيانات
+    const unsubscribeImport = subscribe(EVENTS.DATA_IMPORTED, (payload) => {
+      if (payload.includes?.('customers')) {
+        console.log('📨 استقبال حدث استيراد العملاء');
+        reloadCustomers();
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+      unsubscribeImport();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen relative overflow-hidden">

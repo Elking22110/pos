@@ -18,6 +18,7 @@ import { DataValidator, StorageMonitor } from "./utils/dataValidation"; // إض�
 import DataLoader from "./components/DataLoader"; // إضافة محمل البيانات
 import databaseManager from "./utils/database"; // إضافة مدير قاعدة البيانات
 import { getCurrentDate, cleanExistingData } from './utils/dateUtils.js';
+import { subscribe, EVENTS } from "./utils/observerManager";
 
 function App() {
   const navigate = useNavigate();
@@ -259,6 +260,58 @@ function App() {
       window.removeEventListener('shiftEnded', onShiftEnd);
     };
   }, [navigate]);
+
+  // تحديث كامل تلقائي بعد أي تعديل بيانات عام (منتجات/فئات/عملاء/فواتير/إعدادات)
+  useEffect(() => {
+    const safeReload = () => {
+      try {
+        // منع إعادة التحميل أثناء عرض ملخص الفاتورة/الطباعة
+        const suppressUntil = Number(sessionStorage.getItem('suppressGlobalReloadUntil') || 0);
+        const nowTs = Date.now();
+        if (nowTs < suppressUntil) {
+          return; // لا تُعد التحميل الآن
+        }
+        // لا تُعد التحميل إلا إذا سُمح بذلك صراحةً
+        const allow = sessionStorage.getItem('allowGlobalReload');
+        if (allow !== 'true') {
+          return;
+        }
+        const key = 'lastGlobalAutoReload';
+        const now = Date.now();
+        const prev = Number(sessionStorage.getItem(key) || 0);
+        if (now - prev > 300) {
+          sessionStorage.setItem(key, String(now));
+          setTimeout(() => { window.location.reload(); }, 120);
+        }
+      } catch(_) {}
+    };
+
+    // الاشتراك بقناة الأحداث الموحدة
+    const unsubs = [
+      subscribe?.(EVENTS.PRODUCTS_CHANGED, safeReload),
+      subscribe?.(EVENTS.CATEGORIES_CHANGED, safeReload),
+      subscribe?.(EVENTS.CUSTOMERS_CHANGED, safeReload),
+      subscribe?.(EVENTS.INVOICES_CHANGED, safeReload),
+      subscribe?.(EVENTS.SHIFTS_CHANGED, safeReload),
+      subscribe?.(EVENTS.SETTINGS_CHANGED, safeReload),
+      subscribe?.(EVENTS.DATA_IMPORTED, safeReload)
+    ].filter(Boolean);
+
+    // التخزين المحلي عبر التبويبات
+    const onStorage = (e) => {
+      if (!e || !e.key) return;
+      const keys = ['products', 'productCategories', 'customers', 'sales', 'users', 'pos-settings'];
+      if (keys.includes(e.key) || (e.key.startsWith('__evt__:'))) {
+        safeReload();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      unsubs.forEach((fn) => { if (typeof fn === 'function') fn(); });
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   return (
     <DataLoader>

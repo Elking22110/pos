@@ -44,11 +44,24 @@ const Dashboard = () => {
   const [deliveryNotifications, setDeliveryNotifications] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // تحليل البيانات الحقيقية
+  // تحليل البيانات الحقيقية (محصورة على الوردية النشطة فقط)
   const analyzeRealData = () => {
       try {
-        // تحليل المبيعات
-        const sales = storageOptimizer.get('sales', []);
+        const activeShift = storageOptimizer.get('activeShift', null);
+        // إن لم توجد وردية نشطة، أعرض أصفاراً ولا تستخدم مبيعات سابقة
+        if (!activeShift || !activeShift.id) {
+          setStats({ totalSales: 0, totalOrders: 0, totalCustomers: 0, totalProducts: (storageOptimizer.get('products', []) || []).length });
+          setLowStockProducts((storageOptimizer.get('products', []) || []).filter(p => p.stock <= p.minStock));
+          setDeliveryNotifications([]);
+          setRecentOrders([]);
+          return;
+        }
+
+        // تحليل المبيعات الخاصة بالوردية النشطة فقط
+        const allSales = storageOptimizer.get('sales', []);
+        const sales = Array.isArray(activeShift.sales) && activeShift.sales.length > 0
+          ? activeShift.sales
+          : allSales.filter(s => s.shiftId === activeShift.id);
         const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
         const totalOrders = sales.length;
         
@@ -115,7 +128,7 @@ const Dashboard = () => {
         setRecentOrders(recent);
         
         console.log('تم تحليل البيانات الحقيقية:');
-        console.log('- إجمالي المبيعات:', totalSales);
+        console.log('- إجمالي المبيعات (وردية نشطة):', totalSales);
         console.log('- إجمالي الطلبات:', totalOrders);
         console.log('- إجمالي العملاء:', totalCustomers);
         console.log('- إجمالي المنتجات:', totalProducts);

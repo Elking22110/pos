@@ -1264,6 +1264,153 @@ body::before {
   }
 }
 
+/* تحسينات شاملة للتصميم المتجاوب */
+.mobile-responsive {
+  padding: 8px;
+}
+
+@media (min-width: 640px) {
+  .mobile-responsive {
+    padding: 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-responsive {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-responsive {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .mobile-responsive {
+    padding: 24px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .mobile-responsive {
+    padding: 32px;
+  }
+}
+
+/* تحسينات للشاشات الصغيرة جداً */
+@media (max-width: 480px) {
+  .mobile-responsive {
+    padding: 4px;
+  }
+  
+  .mobile-text {
+    font-size: 12px;
+  }
+  
+  .mobile-button {
+    min-height: 40px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .mobile-card {
+    padding: 8px;
+    border-radius: 8px;
+  }
+  
+  .mobile-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+/* تحسينات للشاشات المتوسطة */
+@media (min-width: 481px) and (max-width: 768px) {
+  .tablet-responsive {
+    padding: 12px;
+  }
+  
+  .tablet-text {
+    font-size: 14px;
+  }
+  
+  .tablet-button {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  .tablet-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .tablet-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+}
+
+/* تحسينات للشاشات الكبيرة */
+@media (min-width: 1200px) {
+  .desktop-responsive {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .desktop-text {
+    font-size: 16px;
+  }
+  
+  .desktop-button {
+    min-height: 48px;
+    padding: 12px 24px;
+    font-size: 16px;
+  }
+  
+  .desktop-card {
+    padding: 24px;
+    border-radius: 16px;
+  }
+  
+  .desktop-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* تحسينات للشاشات فائقة الكبر */
+@media (min-width: 1920px) {
+  .ultra-wide-responsive {
+    padding: 32px;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  
+  .ultra-wide-text {
+    font-size: 18px;
+  }
+  
+  .ultra-wide-button {
+    min-height: 52px;
+    padding: 16px 32px;
+    font-size: 18px;
+  }
+  
+  .ultra-wide-card {
+    padding: 32px;
+    border-radius: 20px;
+  }
+  
+  .ultra-wide-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+  }
+}
+
 .animate-float-delayed {
   animation: float 6s ease-in-out infinite;
   animation-delay: 2s;
@@ -1800,4 +1947,461 @@ select.input-modern {
   background-repeat: no-repeat !important;
   background-size: 1.5em 1.5em !important;
   padding-right: 2.5rem !important;
+}
+
+/* تحسينات إضافية للتصميم المتجاوب الشامل */
+.responsive-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    padding: 0 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-container {
+    padding: 0 3rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-container {
+    padding: 0 4rem;
+  }
+}
+
+/* تحسينات للشبكة الأصلية - نفس الشكل على جميع الشاشات */
+.responsive-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* للشاشات الصغيرة فقط - عمود واحد */
+@media (max-width: 640px) {
+  .responsive-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+/* للشاشات المتوسطة - عمودين */
+@media (min-width: 641px) and (max-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+/* للشاشات الكبيرة - 3 أعمدة */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* للشاشات الكبيرة جداً - 4 أعمدة */
+@media (min-width: 1025px) {
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* تحسينات للنصوص الأصلية - نفس الشكل على جميع الشاشات */
+.responsive-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  .responsive-text {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-text {
+    font-size: 1.125rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-text {
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-text {
+    font-size: 1.375rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-text {
+    font-size: 1.5rem;
+  }
+}
+
+/* تحسينات للأزرار الأصلية - نفس الشكل على جميع الشاشات */
+.responsive-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  min-height: 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    min-height: 3rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-button {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+    min-height: 3.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-button {
+    padding: 1.25rem 2.5rem;
+    font-size: 1.25rem;
+    min-height: 4rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-button {
+    padding: 1.5rem 3rem;
+    font-size: 1.375rem;
+    min-height: 4.5rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-button {
+    padding: 2rem 4rem;
+    font-size: 1.5rem;
+    min-height: 5rem;
+  }
+}
+
+/* تحسينات للكروت الأصلية - نفس الشكل على جميع الشاشات */
+.responsive-card {
+  padding: 1rem;
+  border-radius: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-card {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-card {
+    padding: 2rem;
+    border-radius: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-card {
+    padding: 2.5rem;
+    border-radius: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-card {
+    padding: 3rem;
+    border-radius: 1.75rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-card {
+    padding: 4rem;
+    border-radius: 2rem;
+  }
+}
+
+/* تحسينات للقائمة الجانبية الأصلية - نفس الشكل على جميع الشاشات */
+.responsive-sidebar {
+  width: 16rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-sidebar {
+    width: 18rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-sidebar {
+    width: 20rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-sidebar {
+    width: 22rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-sidebar {
+    width: 24rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-sidebar {
+    width: 26rem;
+  }
+}
+
+/* تحسينات للمحتوى الرئيسي الأصلي - نفس الشكل على جميع الشاشات */
+.responsive-main-content {
+  margin-left: 16rem;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-main-content {
+    margin-left: 18rem;
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-main-content {
+    margin-left: 20rem;
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-main-content {
+    margin-left: 22rem;
+    padding: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-main-content {
+    margin-left: 24rem;
+    padding: 3rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .responsive-main-content {
+    margin-left: 26rem;
+    padding: 4rem;
+  }
+}
+
+/* تحسينات للشاشات الصغيرة - إخفاء القائمة الجانبية */
+@media (max-width: 768px) {
+  .responsive-sidebar {
+    width: 0;
+    overflow: hidden;
+  }
+  
+  .responsive-main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+}
+
+/* تحسينات إضافية للتصميم الثابت */
+.fixed-layout {
+  min-width: 1200px; /* عرض أدنى ثابت */
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* للشاشات الكبيرة - نفس التخطيط */
+@media (min-width: 1201px) {
+  .fixed-layout {
+    min-width: 1200px;
+    max-width: 1600px; /* عرض أقصى للشاشات الكبيرة جداً */
+  }
+}
+
+/* للشاشات المتوسطة - تخطيط متكيف */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .fixed-layout {
+    min-width: auto;
+    max-width: 100%;
+  }
+}
+
+/* للشاشات الصغيرة - تخطيط عمودي */
+@media (max-width: 768px) {
+  .fixed-layout {
+    min-width: auto;
+    max-width: 100%;
+  }
+}
+
+/* تحسينات للعناصر الثابتة */
+.fixed-element {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* للشاشات الكبيرة - عناصر ثابتة */
+@media (min-width: 1025px) {
+  .fixed-element {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* للشاشات المتوسطة - عناصر متكيفة */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .fixed-element {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* للشاشات الصغيرة - عناصر كاملة العرض */
+@media (max-width: 768px) {
+  .fixed-element {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* تحسينات للشاشات اللمس */
+@media (hover: none) and (pointer: coarse) {
+  .touch-optimized {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  .touch-optimized-button {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 12px 16px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .touch-optimized-input {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+}
+
+/* تحسينات للطباعة */
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  
+  .print-visible {
+    display: block !important;
+  }
+  
+  .print-friendly {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  
+  .print-page-break {
+    page-break-before: always;
+  }
+  
+  .print-no-break {
+    page-break-inside: avoid;
+  }
+}
+
+/* تحسينات للوضع المظلم */
+@media (prefers-color-scheme: dark) {
+  .auto-dark {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+  
+  .auto-dark-card {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+  }
+}
+
+/* تحسينات للوضع الفاتح */
+@media (prefers-color-scheme: light) {
+  .auto-light {
+    background-color: #ffffff;
+    color: #000000;
+  }
+  
+  .auto-light-card {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+  }
+}
+
+/* تحسينات للحركة المحدودة */
+@media (prefers-reduced-motion: reduce) {
+  .motion-reduced {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .motion-reduced * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* تحسينات للتباين العالي */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border: 2px solid currentColor;
+  }
+  
+  .high-contrast-button {
+    border: 2px solid currentColor;
+    background-color: transparent;
+  }
+  
+  .high-contrast-button:hover {
+    background-color: currentColor;
+    color: white;
+  }
 }

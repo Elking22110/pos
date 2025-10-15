@@ -22,6 +22,7 @@ import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
 import { formatDate, formatTimeOnly } from '../utils/dateUtils.js';
 import { useAuth } from '../components/AuthProvider';
+import { publish, subscribe, EVENTS } from '../utils/observerManager';
 
 const Products = () => {
   const { user, hasPermission } = useAuth();
@@ -72,6 +73,24 @@ const Products = () => {
   const [productImages, setProductImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  // تعريف الفئات قبل أي استخدام لها في callbacks
+  const [categories, setCategories] = useState([]);
+  
+  // مُحدّث فوري للحالة من التخزين المحلي
+  const forceReloadProductsAndCategories = React.useCallback(() => {
+    try {
+      const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      setProducts(Array.isArray(savedProducts) ? savedProducts : []);
+    } catch (_) {
+      setProducts([]);
+    }
+    try {
+      const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      setCategories(Array.isArray(savedCategories) ? savedCategories : []);
+    } catch (_) {
+      setCategories([]);
+    }
+  }, [setProducts, setCategories]);
 
   // التحقق من صحة اسم المنتج
   const validateProductName = (name) => {
@@ -146,65 +165,220 @@ const Products = () => {
     description: ''
   });
 
-  const [categories, setCategories] = useState([]);
 
-  // تحميل البيانات من localStorage عند بدء التطبيق
+  // تحميل البيانات من localStorage عند بدء التطبيق (بدون بيانات افتراضية)
   useEffect(() => {
-    // تحميل البيانات الموجودة بدلاً من حذفها
+    try {
     const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-    const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
-    
-    // إذا لم توجد بيانات، إضافة بيانات افتراضية فقط
-    if (savedProducts.length === 0) {
-      const defaultProducts = [
-        { id: 1, name: 'حذاء رسمي أسود جلد طبيعي', price: 450, category: 'أحذية', stock: 15, minStock: 5 },
-        { id: 2, name: 'بنطلون رسمي كحلي قطني', price: 180, category: 'بناطيل', stock: 25, minStock: 8 },
-        { id: 3, name: 'قميص رسمي أبيض قطني', price: 120, category: 'قمصان', stock: 30, minStock: 10 },
-        { id: 4, name: 'جاكيت رسمي رمادي صوف', price: 350, category: 'جواكت', stock: 12, minStock: 4 },
-        { id: 5, name: 'حذاء بني جلد طبيعي', price: 380, category: 'أحذية', stock: 18, minStock: 6 },
-        { id: 6, name: 'بنطلون أسود رسمي', price: 160, category: 'بناطيل', stock: 22, minStock: 7 },
-        { id: 7, name: 'قميص أزرق فاتح', price: 95, category: 'قمصان', stock: 35, minStock: 12 },
-        { id: 8, name: 'جاكيت أسود رسمي', price: 320, category: 'جواكت', stock: 2, minStock: 3 },
-        { id: 21, name: 'حذاء رسمي أسود', price: 450, category: 'أحذية', stock: 3, minStock: 5 },
-        { id: 9, name: 'حذاء رياضي أبيض', price: 280, category: 'أحذية', stock: 20, minStock: 8 },
-        { id: 10, name: 'بنطلون جينز أزرق', price: 140, category: 'بناطيل', stock: 28, minStock: 10 },
-        { id: 11, name: 'قميص وردي قطني', price: 110, category: 'قمصان', stock: 5, minStock: 8 },
-        { id: 12, name: 'جاكيت بني صوف', price: 380, category: 'جواكت', stock: 2, minStock: 3 },
-        { id: 13, name: 'حذاء أسود كاجوال', price: 220, category: 'أحذية', stock: 16, minStock: 5 },
-        { id: 14, name: 'بنطلون رمادي رسمي', price: 170, category: 'بناطيل', stock: 20, minStock: 6 },
-        { id: 15, name: 'قميص أخضر فاتح', price: 100, category: 'قمصان', stock: 32, minStock: 10 },
-        { id: 16, name: 'جاكيت أزرق داكن', price: 340, category: 'جواكت', stock: 14, minStock: 4 },
-        { id: 17, name: 'حذاء أحمر جلد', price: 420, category: 'أحذية', stock: 12, minStock: 4 },
-        { id: 18, name: 'بنطلون بيج كاجوال', price: 150, category: 'بناطيل', stock: 24, minStock: 8 },
-        { id: 19, name: 'قميص أصفر قطني', price: 105, category: 'قمصان', stock: 28, minStock: 9 },
-        { id: 20, name: 'جاكيت أخضر داكن', price: 360, category: 'جواكت', stock: 1, minStock: 3 }
-      ];
-      
-      setProducts(defaultProducts);
-      localStorage.setItem('products', JSON.stringify(defaultProducts));
-      console.log('تم إضافة منتجات افتراضية جديدة:', defaultProducts.length, 'منتج');
-    } else {
-      setProducts(savedProducts);
-      console.log('تم تحميل المنتجات الموجودة:', savedProducts.length, 'منتج');
+      const productsArr = Array.isArray(savedProducts) ? savedProducts : [];
+      setProducts(productsArr);
+    } catch (_) {
+      setProducts([]);
     }
-    
-    // إذا لم توجد فئات، إضافة فئات افتراضية فقط
-    if (savedCategories.length === 0) {
-      const defaultCategories = [
-        { name: 'أحذية', description: 'جميع أنواع الأحذية الرسمية والرياضية' },
-        { name: 'بناطيل', description: 'بناطيل رسمية ورياضية وجينز' },
-        { name: 'قمصان', description: 'قمصان رسمية ورياضية بألوان متنوعة' },
-        { name: 'جواكت', description: 'جواكت رسمية ورياضية بمواد مختلفة' }
-      ];
-      
-      setCategories(defaultCategories);
-      localStorage.setItem('productCategories', JSON.stringify(defaultCategories));
-      console.log('تم إضافة فئات افتراضية جديدة:', defaultCategories.length, 'فئة');
-    } else {
-      setCategories(savedCategories);
-      console.log('تم تحميل الفئات الموجودة:', savedCategories.length, 'فئة');
+    try {
+    const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      const catsArr = Array.isArray(savedCategories) ? savedCategories : [];
+      // دمج أي فئات موجودة داخل قائمة المنتجات وغير موجودة في قائمة الفئات
+      const productsNow = JSON.parse(localStorage.getItem('products') || '[]');
+      const productCategoryNames = Array.from(new Set((productsNow || []).map(p => p && p.category).filter(Boolean)));
+      const have = new Set(catsArr.map(c => c && c.name));
+      const missing = productCategoryNames.filter(n => !have.has(n)).map(name => ({ name, description: '' }));
+      const merged = missing.length > 0 ? [...catsArr, ...missing] : catsArr;
+      setCategories(merged);
+      if (missing.length > 0) {
+        try { localStorage.setItem('productCategories', JSON.stringify(merged)); } catch(_) {}
+      }
+    } catch (_) {
+      setCategories([]);
     }
   }, []);
+
+  // بذرة بيانات أساسية (حقيقية) مرة واحدة فقط إذا كانت القوائم فارغة ولم تُستورد بيانات
+  useEffect(() => {
+    try {
+      const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      // ازرع البيانات فقط إذا كانت المنتجات والفئات معاً فارغة
+      if ((Array.isArray(savedProducts) && savedProducts.length > 0) || (Array.isArray(savedCategories) && savedCategories.length > 0)) {
+        return;
+      }
+
+      const seedCategories = [
+        { name: 'بدلات', description: 'بدلات رجالي متنوعة (كلاسيك/سواريه/توكسيدو/صوف الجينزي)' },
+        { name: 'جاكيت', description: 'جاكيت رجالي (كلاسيك/سواريه/قطيفة)' },
+        { name: 'بنطلون', description: 'بنطلونات رجالي (كلاسيك/بتوكة)' },
+        { name: 'قميص', description: 'قمصان رجالي بمقاسات متعددة' },
+        { name: 'اكسسوارات', description: 'وردة، سلسلة، بروش، كرافت، كفان، حزام، شداد القميص، شراب' },
+        { name: 'جزم', description: 'أحذية رجالي (أسود/هافان) بمقاسات متعددة' }
+      ];
+
+      const seedProducts = [
+        { id: Date.now()+1,  name: 'بدلة عدد (3) قطع كلاسيك', price: 3500, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+2,  name: 'بدلة عدد (3) قطع سواريه', price: 3700, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+3,  name: 'بدلة عدد (2) قطع سواريه', price: 3300, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+4,  name: 'بدلة عدد (2) قطع كلاسيك', price: 3100, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+5,  name: 'بدلة توكسيدو (3) قطع كلاسيك', price: 7500, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+6,  name: 'بدلة توكسيدو سواريه', price: 7200, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+7,  name: 'بدلة توكسيدو 2 قطعه', price: 6000, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+8,  name: 'بدلة توكسيدو (2) قطع سواريه', price: 6500, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+9,  name: 'بدلة صوف الجينزي (2) قطعه', price: 4000, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+10, name: 'بدلة صوف الجينزي (3) قطعه', price: 4600, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+11, name: 'بدلة صوف الجينزي (2) قطعه سواريه', price: 4300, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+12, name: 'بدلة صوف الجينزي (3) قطعه سواريه', price: 4900, category: 'بدلات', stock: 0, minStock: 0 },
+        { id: Date.now()+13, name: 'جاكت كلاسيك', price: 2200, category: 'جاكيت', stock: 0, minStock: 0 },
+        { id: Date.now()+14, name: 'جاكت سواريه تطعيم ستان', price: 2300, category: 'جاكيت', stock: 0, minStock: 0 },
+        { id: Date.now()+15, name: 'جاكت سواريه تطعيم قطيفة', price: 2400, category: 'جاكيت', stock: 0, minStock: 0 },
+        { id: Date.now()+16, name: 'جاكت قطيفة سادة', price: 2500, category: 'جاكيت', stock: 0, minStock: 0 },
+        { id: Date.now()+17, name: 'جاكت قطيفة مطعم بستان', price: 2650, category: 'جاكيت', stock: 0, minStock: 0 },
+        { id: Date.now()+18, name: 'بنطلون كلاسيك', price: 850, category: 'بنطلون', stock: 0, minStock: 0 },
+        { id: Date.now()+19, name: 'بنطلون كلاسيك بتوكة', price: 900, category: 'بنطلون', stock: 0, minStock: 0 }
+      
+      // قمصان (المقاسات محفوظة ضمن الاسم)
+      ,{ id: Date.now()+101, name: 'قميص بليسه (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+102, name: 'قميص اكس فورد اسود (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+103, name: 'قميص اكس فورد ابيض (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+104, name: 'قميص اكس فورد لبني (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+105, name: 'قميص كلاسيك ابيض (مقاسات: 38,40,42,44,46)', price: 500, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+106, name: 'قميص كلاسيك اسود (مقاسات: 38,40,42,44,46)', price: 500, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+107, name: 'قميص زر اير مدن (مقاسات: 38,40,42,44,46)', price: 550, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+108, name: 'قميص باندة مسنوره دبل مشتشت (مقاسات: 38,40,42,44,46)', price: 550, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+109, name: 'قميص كلاسيك مقاس خاص ابيض (مقاسات: 48,50,52)', price: 750, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+110, name: 'قميص كلاسيك مقاس خاص اسود (مقاسات: 48,50,52)', price: 750, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+111, name: 'قميص صدر بيكا (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+112, name: 'قميص بن اسود (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+113, name: 'قميص بن ابيض (مقاسات: 38,40,42,44,46)', price: 650, category: 'قميص', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+114, name: 'قميص اطفال (مقاسات: 22,24,26,28,30,32,34,36)', price: 300, category: 'قميص', stock: 0, minStock: 0 }
+
+      // اكسسوارات
+      ,{ id: Date.now()+201, name: 'الوردة', price: 125, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+202, name: 'السلسه', price: 100, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+203, name: 'البروچ', price: 75, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+204, name: 'الساعه', price: 350, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+205, name: 'الكرفات', price: 250, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+206, name: 'الكفان', price: 250, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+207, name: 'الحزام', price: 350, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+208, name: 'البينون', price: 150, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+209, name: 'شداد القميص', price: 300, category: 'اكسسوارات', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+210, name: 'الشراب', price: 100, category: 'اكسسوارات', stock: 0, minStock: 0 }
+
+      // جزم
+      ,{ id: Date.now()+301, name: 'جزمة اسود سادة (مقاسات: 40,41,42,43,44,45)', price: 850, category: 'جزم', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+302, name: 'جزمة هافان (مقاسات: 40,41,42,43,44,45)', price: 850, category: 'جزم', stock: 0, minStock: 0 }
+      ,{ id: Date.now()+303, name: 'جزمة اسود فرنية (مقاسات: 40,41,42,43,44,45)', price: 900, category: 'جزم', stock: 0, minStock: 0 }
+      ];
+
+      localStorage.setItem('productCategories', JSON.stringify(seedCategories));
+      localStorage.setItem('products', JSON.stringify(seedProducts));
+
+      setCategories(seedCategories);
+      setProducts(seedProducts);
+      try { publish(EVENTS.CATEGORIES_CHANGED, { type: 'seed', count: seedCategories.length }); } catch(_) {}
+      try { publish(EVENTS.PRODUCTS_CHANGED, { type: 'seed', count: seedProducts.length }); } catch(_) {}
+    } catch (_) {}
+  }, [setProducts, setCategories]);
+
+  // إعادة تهيئة كاملة: مسح البيانات الحالية وزراعة البيانات الجديدة بدون مقاسات (مرة واحدة)
+  useEffect(() => {
+    try {
+      const reseedDone = localStorage.getItem('reseed_done_v2') === 'true';
+      if (reseedDone) return;
+
+      // مسح
+      localStorage.removeItem('products');
+      localStorage.removeItem('productCategories');
+
+      // فئات
+      const freshCategories = [
+        { name: 'بدلات', description: 'بدلات رجالي متنوعة (كلاسيك/سواريه/توكسيدو/صوف الجينزي)' },
+        { name: 'جاكيت', description: 'جاكيت رجالي (كلاسيك/سواريه/قطيفة)' },
+        { name: 'بنطلون', description: 'بنطلونات رجالي (كلاسيك/بتوكة)' },
+        { name: 'قميص', description: 'قمصان رجالي' },
+        { name: 'اكسسوارات', description: 'وردة، سلسلة، بروش، كرافت، كفان، حزام، شداد القميص، شراب' },
+        { name: 'جزم', description: 'أحذية رجالي (أسود/هافان)'}
+      ];
+
+      // منتجات بدون مقاسات داخل الاسم
+      let idc = Date.now();
+      const freshProducts = [
+        // بدلات
+        { name: 'بدلة عدد (3) قطع كلاسيك', price: 3500, category: 'بدلات' },
+        { name: 'بدلة عدد (3) قطع سواريه', price: 3700, category: 'بدلات' },
+        { name: 'بدلة عدد (2) قطع سواريه', price: 3300, category: 'بدلات' },
+        { name: 'بدلة عدد (2) قطع كلاسيك', price: 3100, category: 'بدلات' },
+        { name: 'بدلة توكسيدو (3) قطع كلاسيك', price: 7500, category: 'بدلات' },
+        { name: 'بدلة توكسيدو سواريه', price: 7200, category: 'بدلات' },
+        { name: 'بدلة توكسيدو 2 قطعه', price: 6000, category: 'بدلات' },
+        { name: 'بدلة توكسيدو (2) قطع سواريه', price: 6500, category: 'بدلات' },
+        { name: 'بدلة صوف الجينزي (2) قطعه', price: 4000, category: 'بدلات' },
+        { name: 'بدلة صوف الجينزي (3) قطعه', price: 4600, category: 'بدلات' },
+        { name: 'بدلة صوف الجينزي (2) قطعه سواريه', price: 4300, category: 'بدلات' },
+        { name: 'بدلة صوف الجينزي (3) قطعه سواريه', price: 4900, category: 'بدلات' },
+        // جاكيت
+        { name: 'جاكت كلاسيك', price: 2200, category: 'جاكيت' },
+        { name: 'جاكت سواريه تطعيم ستان', price: 2300, category: 'جاكيت' },
+        { name: 'جاكت سواريه تطعيم قطيفة', price: 2400, category: 'جاكيت' },
+        { name: 'جاكت قطيفة سادة', price: 2500, category: 'جاكيت' },
+        { name: 'جاكت قطيفة مطعم بستان', price: 2650, category: 'جاكيت' },
+        // بنطلون
+        { name: 'بنطلون كلاسيك', price: 850, category: 'بنطلون' },
+        { name: 'بنطلون كلاسيك بتوكة', price: 900, category: 'بنطلون' },
+        // قمصان
+        { name: 'قميص بليسه', price: 650, category: 'قميص' },
+        { name: 'قميص اكس فورد اسود', price: 650, category: 'قميص' },
+        { name: 'قميص اكس فورد ابيض', price: 650, category: 'قميص' },
+        { name: 'قميص اكس فورد لبني', price: 650, category: 'قميص' },
+        { name: 'قميص كلاسيك ابيض', price: 500, category: 'قميص' },
+        { name: 'قميص كلاسيك اسود', price: 500, category: 'قميص' },
+        { name: 'قميص زر اير مدن', price: 550, category: 'قميص' },
+        { name: 'قميص باندة مسنوره دبل مشتشت', price: 550, category: 'قميص' },
+        { name: 'قميص كلاسيك مقاس خاص ابيض', price: 750, category: 'قميص' },
+        { name: 'قميص كلاسيك مقاس خاص اسود', price: 750, category: 'قميص' },
+        { name: 'قميص صدر بيكا', price: 650, category: 'قميص' },
+        { name: 'قميص بن اسود', price: 650, category: 'قميص' },
+        { name: 'قميص بن ابيض', price: 650, category: 'قميص' },
+        { name: 'قميص اطفال', price: 300, category: 'قميص' },
+        // اكسسوارات
+        { name: 'الوردة', price: 125, category: 'اكسسوارات' },
+        { name: 'السلسه', price: 100, category: 'اكسسوارات' },
+        { name: 'البروچ', price: 75, category: 'اكسسوارات' },
+        { name: 'الساعه', price: 350, category: 'اكسسوارات' },
+        { name: 'الكرفات', price: 250, category: 'اكسسوارات' },
+        { name: 'الكفان', price: 250, category: 'اكسسوارات' },
+        { name: 'الحزام', price: 350, category: 'اكسسوارات' },
+        { name: 'البينون', price: 150, category: 'اكسسوارات' },
+        { name: 'شداد القميص', price: 300, category: 'اكسسوارات' },
+        { name: 'الشراب', price: 100, category: 'اكسسوارات' },
+        // جزم
+        { name: 'جزمة اسود سادة', price: 850, category: 'جزم' },
+        { name: 'جزمة هافان', price: 850, category: 'جزم' },
+        { name: 'جزمة اسود فرنية', price: 900, category: 'جزم' }
+      ].map(p => ({ id: idc++, stock: 0, minStock: 0, ...p }));
+
+      localStorage.setItem('productCategories', JSON.stringify(freshCategories));
+      localStorage.setItem('products', JSON.stringify(freshProducts));
+      setCategories(freshCategories);
+      setProducts(freshProducts);
+      localStorage.setItem('reseed_done_v2', 'true');
+      try { publish(EVENTS.CATEGORIES_CHANGED, { type: 'reset_seed', count: freshCategories.length }); } catch(_) {}
+      try { publish(EVENTS.PRODUCTS_CHANGED, { type: 'reset_seed', count: freshProducts.length }); } catch(_) {}
+    } catch(_) {}
+  }, []);
+
+  // مزامنة الفئات مع فئات المنتجات: إضافة أي فئة تظهر داخل المنتجات وغير موجودة في قائمة الفئات
+  useEffect(() => {
+    try {
+      const categoryNameSet = new Set((categories || []).map(c => c && c.name));
+      const missing = Array.from(new Set((products || []).map(p => p && p.category).filter(Boolean)))
+        .filter(name => !categoryNameSet.has(name))
+        .map(name => ({ name, description: '' }));
+      if (missing.length > 0) {
+        const merged = [...categories, ...missing];
+        setCategories(merged);
+        try { localStorage.setItem('productCategories', JSON.stringify(merged)); } catch(_) {}
+        try { publish(EVENTS.CATEGORIES_CHANGED, { type: 'sync_from_products', added: missing.length }); } catch(_) {}
+      }
+    } catch (_) {}
+  }, [products]);
 
   // تحميل صور المنتجات الموجودة
   useEffect(() => {
@@ -277,6 +451,13 @@ const Products = () => {
       } 
     }));
     
+    // نشر حدث تغيير الفئات
+    publish(EVENTS.CATEGORIES_CHANGED, {
+      type: 'create',
+      category: newCategory,
+      categories: updatedCategories
+    });
+    
     // إعادة تعيين النموذج
     setNewCategory({ name: '', description: '' });
     setShowAddCategoryModal(false);
@@ -306,16 +487,25 @@ const Products = () => {
       // حفظ الفئات في localStorage
       localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
       
+      // نشر حدث تغيير الفئات
+      publish(EVENTS.CATEGORIES_CHANGED, {
+        type: 'delete',
+        categoryName: categoryName,
+        categories: updatedCategories
+      });
+      
       // إشعار نجاح حذف الفئة
       notifyCategoryDeleted(categoryName);
     }
   };
 
-  // تحميل الفئات المحفوظة
+  // تحميل الفئات المحفوظة بدون إدخال بيانات افتراضية
   useEffect(() => {
-    const savedCategories = localStorage.getItem('productCategories');
-    if (savedCategories) {
-      setCategories(JSON.parse(savedCategories));
+    try {
+      const saved = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      setCategories(Array.isArray(saved) ? saved : []);
+    } catch (_) {
+      setCategories([]);
     }
   }, []);
 
@@ -376,6 +566,13 @@ const Products = () => {
       } 
     }));
     
+    // نشر حدث تغيير المنتجات
+    publish(EVENTS.PRODUCTS_CHANGED, {
+      type: 'create',
+      product: product,
+      products: updatedProducts
+    });
+    
       setNewProduct({
         name: '',
         price: '',
@@ -419,6 +616,13 @@ const Products = () => {
         } 
       }));
       
+      // نشر حدث تغيير المنتجات
+      publish(EVENTS.PRODUCTS_CHANGED, {
+        type: 'update',
+        product: updatedProduct,
+        products: updatedProducts
+      });
+      
       setEditingProduct(null);
       setNewProduct({
         name: '',
@@ -452,6 +656,13 @@ const Products = () => {
         } 
       }));
       
+      // نشر حدث تغيير المنتجات
+      publish(EVENTS.PRODUCTS_CHANGED, {
+        type: 'delete',
+        productId: id,
+        products: updatedProducts
+      });
+      
       // إشعار نجاح الحذف
       notifyProductDeleted(product.name);
     }
@@ -478,6 +689,63 @@ const Products = () => {
       console.log('لا توجد منتجات منخفضة المخزون أو المنتجات غير محملة');
     }
   }, [products, lowStockProducts]);
+  
+  // الاشتراك في أحداث تغيير المنتجات من صفحات أخرى
+  useEffect(() => {
+    const reloadProducts = () => {
+      const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      setProducts(savedProducts);
+      console.log('🔄 تم إعادة تحميل المنتجات:', savedProducts.length);
+    };
+    
+    const reloadCategories = () => {
+      const savedCategories = JSON.parse(localStorage.getItem('productCategories') || '[]');
+      setCategories(savedCategories);
+      console.log('🔄 تم إعادة تحميل الفئات:', savedCategories.length);
+    };
+    
+    // الاشتراك في أحداث تغيير المنتجات — تحديث فوري للصفحة بدون انتظار
+    const unsubscribe = subscribe(EVENTS.PRODUCTS_CHANGED, (payload) => {
+      console.log('📨 استقبال حدث تغيير المنتجات (تحديث فوري):', payload);
+      try { window.location.reload(); } catch(_) { reloadProducts(); }
+    });
+    
+    // الاشتراك في أحداث تغيير الفئات — تحديث فوري للصفحة بدون انتظار
+    const unsubscribeCategories = subscribe(EVENTS.CATEGORIES_CHANGED, (payload) => {
+      console.log('📨 استقبال حدث تغيير الفئات (تحديث فوري):', payload);
+      try { window.location.reload(); } catch(_) { reloadCategories(); }
+    });
+    
+    // الاشتراك في أحداث استيراد البيانات
+    const unsubscribeImport = subscribe(EVENTS.DATA_IMPORTED, (payload) => {
+      if (payload.includes?.('products')) {
+        console.log('📨 استقبال حدث استيراد المنتجات');
+        reloadProducts();
+      }
+      if (payload.includes?.('categories')) {
+        console.log('📨 استقبال حدث استيراد الفئات');
+        reloadCategories();
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+      unsubscribeCategories();
+      unsubscribeImport();
+    };
+  }, []);
+
+  // الاستماع لتغييرات التخزين (احتياطي) وتحديث فوري داخل نفس الصفحة
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (!e || !e.key) return;
+      if (e.key === 'products' || e.key === 'productCategories' || (e.key.startsWith('__evt__:'))) {
+        forceReloadProductsAndCategories();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [forceReloadProductsAndCategories]);
 
   // useEffect منفصل لتحديث المنتجات منخفضة المخزون
   useEffect(() => {
@@ -578,27 +846,27 @@ const Products = () => {
             </div>
           </div>
 
-          <div className="glass-card hover-lift group cursor-pointer p-4 md:p-6 lg:p-8">
-            <div className="flex items-center justify-between mb-4 md:mb-6">
+          <div className="glass-card hover-lift group cursor-pointer p-6 md:p-8 lg:p-10 xl:p-12 col-span-2">
+            <div className="flex items-center justify-between mb-6 md:mb-8">
               <div className="flex-1">
-                <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">منخفضة المخزون</p>
-                <p className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-2">{lowStockProducts.length}</p>
+                <p className="text-sm md:text-base font-medium text-purple-200 mb-2 uppercase tracking-wide">منخفضة المخزون</p>
+                <p className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4">{lowStockProducts.length}</p>
                 {console.log('لوحة التحكم - عدد المنتجات منخفضة المخزون:', lowStockProducts.length)}
-                <div className="flex items-center text-xs">
+                <div className="flex items-center text-sm md:text-base">
                   <span className="text-orange-300 font-medium">تحتاج إعادة تموين</span>
                 </div>
                 {lowStockProducts.length > 0 && (
-                  <div className="mt-2 text-xs text-orange-200 max-h-20 overflow-y-auto">
+                  <div className="mt-4 text-sm md:text-base text-orange-200 max-h-32 md:max-h-40 overflow-y-auto">
                     {lowStockProducts.map(product => (
-                      <div key={product.id} className="truncate">
+                      <div key={product.id} className="truncate mb-1">
                         {emojiManager.getProductEmoji(product)} {product.name}: {product.stock}/{product.minStock}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="p-2 md:p-3 lg:p-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-white" />
+              <div className="p-4 md:p-5 lg:p-6 xl:p-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl md:rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <AlertTriangle className="h-6 w-6 md:h-8 md:w-8 lg:h-10 lg:w-10 xl:h-12 xl:w-12 text-white" />
               </div>
             </div>
           </div>
@@ -647,6 +915,8 @@ const Products = () => {
                 const updatedProductsLocal = products.map(p => p.category === selectedCategory ? { ...p, category: newName } : p);
                 setProducts(updatedProductsLocal);
                 localStorage.setItem('products', JSON.stringify(updatedProductsLocal));
+                try { publish(EVENTS.CATEGORIES_CHANGED, { type: 'update', from: selectedCategory, to: newName, categories: updatedCategories }); } catch(_) {}
+                try { publish(EVENTS.PRODUCTS_CHANGED, { type: 'bulk_update_category', from: selectedCategory, to: newName }); } catch(_) {}
                 
                 // إرسال إشارة لتحديث نقطة البيع فورياً
                 window.dispatchEvent(new CustomEvent('categoriesUpdated', { 
@@ -684,11 +954,13 @@ const Products = () => {
                 const remainingProducts = products.filter(p => p.category !== selectedCategory);
                 setProducts(remainingProducts);
                 localStorage.setItem('products', JSON.stringify(remainingProducts));
+                try { publish(EVENTS.PRODUCTS_CHANGED, { type: 'bulk_delete_by_category', categoryName: selectedCategory, products: remainingProducts }); } catch(_) {}
 
                 // حذف الفئة نفسها
                 const updatedCategories = categories.filter(c => c.name !== selectedCategory);
                 setCategories(updatedCategories);
                 localStorage.setItem('productCategories', JSON.stringify(updatedCategories));
+                try { publish(EVENTS.CATEGORIES_CHANGED, { type: 'delete', categoryName: selectedCategory, categories: updatedCategories }); } catch(_) {}
 
                 notifyCategoryDeleted(selectedCategory);
                 setSelectedCategory('الكل');

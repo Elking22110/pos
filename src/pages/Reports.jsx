@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import { publish, EVENTS } from '../utils/observerManager';
+import React, { useState, useEffect } from 'react';
 import { useNotifications } from '../components/NotificationSystem';
 import soundManager from '../utils/soundManager.js';
 import emojiManager from '../utils/emojiManager.js';
@@ -86,6 +87,16 @@ const Reports = () => {
     categorySales: [],
     customerData: []
   });
+
+  // مصدر موحّد لعدد الفواتير المعروضة وفق التبويب الحالي
+  const visibleInvoices = React.useMemo(() => {
+    try {
+      if (selectedReport === 'invoices' || selectedReport === 'partial-invoices') {
+        return getCurrentData() || [];
+      }
+      return allSales || [];
+    } catch (_) { return allSales || []; }
+  }, [selectedReport, allSales, selectedPeriod, invoiceFilter, searchTerm]);
 
   // تحليل البيانات الحقيقية من localStorage
   useEffect(() => {
@@ -368,6 +379,7 @@ const Reports = () => {
           const allSalesData = JSON.parse(localStorage.getItem('sales') || '[]');
           const updatedSales = allSalesData.filter(sale => sale.id !== invoiceId);
           localStorage.setItem('sales', JSON.stringify(updatedSales));
+          try { publish(EVENTS.INVOICES_CHANGED, { type: 'delete', invoiceId }); } catch(_) {}
           
           // إزالة الفاتورة من مبيعات الوردية النشطة
           const activeShift = JSON.parse(localStorage.getItem('activeShift') || 'null');
@@ -534,6 +546,7 @@ const Reports = () => {
         const sales = JSON.parse(localStorage.getItem('sales') || '[]');
         const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
         localStorage.setItem('sales', JSON.stringify(updatedSales));
+        try { publish(EVENTS.INVOICES_CHANGED, { type: 'update', invoiceId }); } catch(_) {}
         try {
           const products = JSON.parse(localStorage.getItem('products') || '[]');
           const targetId = updatedInvoice.items[itemIndex].id;
@@ -579,6 +592,7 @@ const Reports = () => {
             return !(isRefundType && matchesRef) && !isNegative;
           });
           localStorage.setItem('sales', JSON.stringify(updatedSales));
+          try { publish(EVENTS.INVOICES_CHANGED, { type: 'update', invoiceId }); } catch(_) {}
           try {
             const products = JSON.parse(localStorage.getItem('products') || '[]');
             const targetId = updatedInvoice.items[itemIndex].id;
@@ -646,6 +660,7 @@ const Reports = () => {
           const sales = JSON.parse(localStorage.getItem('sales') || '[]');
           const updatedSales = sales.map(sale => sale.id === invoiceId ? updatedInvoice : sale);
           localStorage.setItem('sales', JSON.stringify(updatedSales));
+          try { publish(EVENTS.INVOICES_CHANGED, { type: 'update', invoiceId }); } catch(_) {}
 
           // تحديث البيانات المحلية
           setAllSales(updatedSales);
@@ -887,12 +902,13 @@ const Reports = () => {
             ${invoice.downPayment && invoice.downPayment.enabled ? `
               <div class="down-payment">
                 <div><strong>العربون المدفوع:</strong> ${(invoice.downPayment.amount || 0).toLocaleString('en-US')} جنيه</div>
+                <div><strong>طريقة دفع العربون:</strong> ${getPaymentMethodText(invoice.paymentMethod)}</div>
                 <div><strong>نوع العربون:</strong> ${invoice.downPayment.type === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'}</div>
               </div>
               
               <div class="remaining-amount">
                 <div><strong>المبلغ المتبقي:</strong> ${remainingAmount.toLocaleString('en-US')} جنيه</div>
-                <div style="font-size: 11px; color: #666;">يتم دفعه عند استلام الطلب</div>
+                ${invoice.settlement ? `<div><strong>تم سداده عن طريق:</strong> ${getPaymentMethodText(invoice.settlement.method)} (${(invoice.settlement.amount || 0).toLocaleString('en-US')} جنيه)</div>` : '<div style="font-size: 11px; color: #666;">يتم دفعه عند استلام الطلب</div>'}
               </div>
             ` : ''}
           </div>
@@ -922,9 +938,10 @@ const Reports = () => {
     const methods = {
       'cash': 'نقداً',
       'wallet': 'محفظة إلكترونية',
-      'instapay': 'دفع فوري'
+      'instapay': 'انستا باي',
+      'bank': 'تحويل بنكي'
     };
-    return methods[method] || method;
+    return methods[method] || (method || 'غير محدد');
   };
 
   // تجميع الفواتير حسب التاريخ (يوم/شهر/سنة)
@@ -954,6 +971,15 @@ const Reports = () => {
       default:
         return <Receipt className="h-4 w-4 text-gray-500" />;
     }
+  };
+
+  // مقارنة تواريخ في نفس اليوم (تجاهل الوقت)
+  const isSameDay = (a, b) => {
+    try {
+      const da = new Date(a);
+      const db = new Date(b);
+      return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+    } catch(_) { return false; }
   };
 
   const reports = [
@@ -1008,6 +1034,17 @@ const Reports = () => {
       });
     }
 
+    // استبعاد الفواتير غير المكتملة من قائمة "الفواتير" العامة
+    // تبقى الفواتير غير المكتملة فقط في تبويب "الفواتير غير المكتملة"
+    filtered = filtered.filter(inv => {
+      const hasDown = inv?.downPayment?.enabled;
+      if (!hasDown) return true;
+      const remaining = (inv.downPayment?.remaining != null)
+        ? Number(inv.downPayment.remaining) || 0
+        : (Number(inv.total) || 0) - (Number(inv.downPayment?.amount) || 0);
+      return remaining <= 0;
+    });
+
     // فلترة حسب نوع الدفع
     if (invoiceFilter !== 'all') {
       filtered = filtered.filter(invoice => invoice.paymentMethod === invoiceFilter);
@@ -1056,7 +1093,7 @@ const Reports = () => {
   };
 
   const getPartialInvoices = () => {
-    // فلترة الفواتير التي لها عربون ومبلغ متبقي
+    // فلترة الفواتير التي لها عربون ومبلغ متبقي (بدون تقييد بتاريخ اليوم)
     const partialInvoices = allSales.filter(invoice => {
       // التحقق من وجود عربون
       if (!invoice.downPayment || !invoice.downPayment.enabled) {
@@ -1102,7 +1139,23 @@ const Reports = () => {
 
   // مدمجة بالفعل أعلاه - لا نعيد تعريفها هنا
 
-  const payRemainingAmount = (invoiceId) => {
+  // حالة نافذة اختيار طريقة سداد المتبقي
+  const [showSettlementModal, setShowSettlementModal] = React.useState(false);
+  const [settlementInvoiceId, setSettlementInvoiceId] = React.useState(null);
+  const [settlementMethod, setSettlementMethod] = React.useState('cash');
+  const [settlementRemaining, setSettlementRemaining] = React.useState(0);
+
+  const openSettlementModal = (invoiceId) => {
+    const invoice = allSales.find(sale => sale.id === invoiceId);
+    if (!invoice || !invoice.downPayment || !invoice.downPayment.enabled) return;
+    const remainingAmount = invoice.downPayment.remaining || (invoice.total - invoice.downPayment.amount);
+    setSettlementInvoiceId(invoiceId);
+    setSettlementRemaining(Number(remainingAmount) || 0);
+    setSettlementMethod('cash');
+    setShowSettlementModal(true);
+  };
+
+  const payRemainingAmount = (invoiceId, methodOverride) => {
     if (!invoiceId) {
       notifyError('خطأ', 'رقم الفاتورة غير صحيح');
       return;
@@ -1129,16 +1182,28 @@ const Reports = () => {
     
     if (confirm(confirmMessage)) {
       try {
+        // اختيار طريقة دفع المتبقي
+        const allowed = ['cash','wallet','instapay','bank'];
+        let settlementMethod = (methodOverride || '').toLowerCase();
+        if (!allowed.includes(settlementMethod)) {
+          const methodInput = (prompt('اختَر طريقة دفع المتبقي: cash | wallet | instapay | bank', 'cash') || 'cash').trim().toLowerCase();
+          settlementMethod = allowed.includes(methodInput) ? methodInput : 'cash';
+        }
+        const settlementInfo = { method: settlementMethod, amount: Number(remainingAmount) || 0, timestamp: new Date().toISOString() };
+
         // تحديث الفاتورة في localStorage
         const updatedSales = allSales.map(sale => {
           if (sale.id === invoiceId) {
             return {
               ...sale,
+              settlement: settlementInfo,
               downPayment: {
                 ...sale.downPayment,
                 remaining: 0,
                 enabled: false
-              }
+              },
+              // اعتبرها مكتملة الآن (لا عربون متبقٍ)
+              paymentStatus: 'complete'
             };
           }
           return sale;
@@ -1146,8 +1211,35 @@ const Reports = () => {
         
         localStorage.setItem('sales', JSON.stringify(updatedSales));
         setAllSales(updatedSales);
+
+        // تحديث الوردية النشطة بنفس التغيير لضمان تطابق التقارير
+        try {
+          const activeShift = JSON.parse(localStorage.getItem('activeShift') || 'null');
+          if (activeShift && Array.isArray(activeShift.sales)) {
+            const updatedShift = { ...activeShift };
+            updatedShift.sales = (activeShift.sales || []).map(s => {
+              if (s && s.id === invoiceId) {
+                return {
+                  ...s,
+                  settlement: settlementInfo,
+                  downPayment: {
+                    ...(s.downPayment || {}),
+                    remaining: 0,
+                    enabled: false
+                  },
+                  paymentStatus: 'complete'
+                };
+              }
+              return s;
+            });
+            localStorage.setItem('activeShift', JSON.stringify(updatedShift));
+          }
+        } catch(_) {}
+
+        // نشر حدث لتحديث جميع الشاشات فوراً
+        try { publish(EVENTS.INVOICES_CHANGED, { type: 'settled', invoiceId }); } catch(_) {}
         
-        notifySuccess('تم السداد بنجاح', `تم سداد المبلغ المتبقي: ${remainingAmount.toFixed(2)} جنيه`);
+        notifySuccess('تم السداد بنجاح', `تم سداد المبلغ المتبقي: ${remainingAmount.toFixed(2)} جنيه (${getPaymentMethodText(settlementMethod)})`);
         
         // إغلاق المودال
         setShowInvoiceModal(false);
@@ -1177,10 +1269,21 @@ const Reports = () => {
         return realTimeData.customerData;
       case 'inventory':
         return realTimeData.categorySales;
-      case 'invoices':
-        return getFilteredInvoices();
-      case 'partial-invoices':
-        return getPartialInvoices();
+      case 'invoices': {
+        // إظهار فواتير الوردية النشطة فقط، والمكتملة فقط
+        const list = getFilteredInvoices();
+        try {
+          const active = JSON.parse(localStorage.getItem('activeShift') || 'null');
+          const activeId = (active && active.status === 'active') ? active.id : null;
+          if (!activeId) return [];
+          return list.filter(inv => inv.shiftId === activeId);
+        } catch (_) { return []; }
+      }
+      case 'partial-invoices': {
+        const list = getPartialInvoices();
+        const today = new Date();
+        return list.filter(inv => isSameDay(inv.timestamp || inv.date, today));
+      }
       default:
         return realTimeData.dailySales;
     }
@@ -1343,6 +1446,42 @@ const Reports = () => {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-3 animate-float" style={{animationDelay: '2s'}}></div>
         <div className="absolute top-40 left-40 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl opacity-3 animate-float" style={{animationDelay: '4s'}}></div>
       </div>
+
+      {/* نافذة سداد المتبقي - اختيار طريقة الدفع */}
+      {showSettlementModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-gray-800 rounded-xl p-4 md:p-6 w-full max-w-sm">
+            <h3 className="text-white text-base md:text-lg font-bold mb-3">اختيار طريقة سداد المتبقي</h3>
+            <p className="text-gray-300 text-sm mb-4">المبلغ المتبقي: <span className="text-yellow-300 font-semibold">{(settlementRemaining || 0).toLocaleString('en-US')}</span> جنيه</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { value: 'cash', label: 'نقداً' },
+                { value: 'wallet', label: 'محفظة إلكترونية' },
+                { value: 'instapay', label: 'انستا باي' },
+                { value: 'bank', label: 'تحويل بنكي' }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSettlementMethod(opt.value)}
+                  className={`py-2 rounded-lg border-2 text-sm ${settlementMethod === opt.value ? 'border-blue-500 bg-blue-500 bg-opacity-20 text-blue-300' : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowSettlementModal(false); setSettlementInvoiceId(null); }}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg"
+              >إلغاء</button>
+              <button
+                onClick={() => { const id = settlementInvoiceId; const m = settlementMethod; setShowSettlementModal(false); setSettlementInvoiceId(null); payRemainingAmount(id, m); }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg"
+              >تأكيد السداد</button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="relative z-10 p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 lg:space-y-8">
         {/* Header */}
@@ -1476,7 +1615,7 @@ const Reports = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1">
               <p className="text-xs font-medium text-purple-200 mb-1 uppercase tracking-wide">عدد الطلبات</p>
-              <p className="text-lg md:text-xl font-bold text-white mb-2">{(allSales?.length || 0).toLocaleString('en-US')}</p>
+              <p className="text-lg md:text-xl font-bold text-white mb-2">{(visibleInvoices?.length || 0).toLocaleString('en-US')}</p>
               <div className="flex items-center text-xs">
                 <TrendingUp className="h-3 w-3 text-green-400 mr-1" />
                 <span className="text-green-400 font-semibold">+8.2%</span>
@@ -1749,7 +1888,7 @@ const Reports = () => {
                     <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-purple-200 uppercase tracking-wider">النسبة%</th>
                   </>
                 )}
-                {selectedReport === 'invoices' && (
+                {(selectedReport === 'invoices' || selectedReport === 'partial-invoices') && (
                   <>
                     <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-purple-200 uppercase tracking-wider">رقم الفاتورة</th>
                     <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-purple-200 uppercase tracking-wider">العميل</th>
@@ -1798,9 +1937,21 @@ const Reports = () => {
               {/* المبلغ */}
               <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-green-300 font-semibold">{(Number(item.total) || 0).toLocaleString('en-US')} جنيه</td>
               {/* طريقة الدفع */}
-              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">{getPaymentMethodText(item.paymentMethod)}</td>
+              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">
+                {getPaymentMethodText(item.paymentMethod)}
+                {item.downPayment?.enabled && ((item.downPayment?.remaining ?? (item.total - item.downPayment.amount)) > 0) && (
+                  <span className="ml-2 text-xs text-yellow-300">
+                    عربون: {getPaymentMethodText(item.paymentMethod)}
+                  </span>
+                )}
+                {item.settlement && (
+                  <span className="ml-2 text-xs text-green-300">
+                    متبقي: {getPaymentMethodText(item.settlement.method)}
+                  </span>
+                )}
+              </td>
               {/* التاريخ */}
-              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs text-purple-200">{item.timestamp || item.date || ''}</td>
+              <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs text-purple-200">{formatDateTime(item.timestamp || item.date || '')}</td>
               {/* الإجراءات */}
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">
                 <div className="flex flex-wrap gap-2" style={{ position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
@@ -1814,7 +1965,7 @@ const Reports = () => {
                           </button>
                           {item.downPayment && item.downPayment.enabled && item.downPayment.remaining > 0 && (
                             <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); soundManager.play('cash'); payRemainingAmount(item.id); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); soundManager.play('cash'); openSettlementModal(item.id); }}
                               className="text-green-400 hover:text-green-300 transition-all duration-200 p-2 hover:bg-green-500 hover:bg-opacity-20 rounded-lg border border-green-400 border-opacity-30 hover:border-opacity-60 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer"
                               title="سداد المبلغ المتبقي"
                       style={{ pointerEvents: 'auto', zIndex: 2, position: 'relative' }}

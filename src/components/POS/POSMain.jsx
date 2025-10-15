@@ -5,6 +5,7 @@ import ProductGrid from './ProductGrid';
 import CartManager from './CartManager';
 import PaymentManager from './PaymentManager';
 import soundManager from '../../utils/soundManager.js';
+import { publish, subscribe, EVENTS } from '../../utils/observerManager';
 import errorHandler from '../../utils/errorHandler.js';
 import storageOptimizer from '../../utils/storageOptimizer.js';
 import { getLocalDateString, formatDateTime, getCurrentDate, formatDateToDDMMYYYY } from '../../utils/dateUtils.js';
@@ -74,9 +75,40 @@ const POSMain = () => {
     const onEnded = () => setActiveShift(null);
     window.addEventListener('shiftStarted', onStarted);
     window.addEventListener('shiftEnded', onEnded);
+    const unsubscribeShift = typeof subscribe === 'function' ? subscribe(EVENTS.SHIFTS_CHANGED, loadActiveShift) : null;
     return () => {
       window.removeEventListener('shiftStarted', onStarted);
       window.removeEventListener('shiftEnded', onEnded);
+      if (typeof unsubscribeShift === 'function') unsubscribeShift();
+    };
+  }, []);
+
+  // تحميل المنتجات والفئات والاشتراك في تحديثهما
+  useEffect(() => {
+    const reloadProducts = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('products') || '[]');
+        setProducts(saved);
+      } catch (_) {}
+    };
+    const reloadCategories = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('productCategories') || '[]');
+        setCategories(saved);
+      } catch (_) {}
+    };
+
+    // تحميل أولي
+    reloadProducts();
+    reloadCategories();
+
+    // الاشتراك في تغييرات المنتجات والفئات
+    const unsubProducts = typeof subscribe === 'function' ? subscribe(EVENTS.PRODUCTS_CHANGED, reloadProducts) : null;
+    const unsubCategories = typeof subscribe === 'function' ? subscribe(EVENTS.CATEGORIES_CHANGED, reloadCategories) : null;
+
+    return () => {
+      if (typeof unsubProducts === 'function') unsubProducts();
+      if (typeof unsubCategories === 'function') unsubCategories();
     };
   }, []);
 
@@ -163,6 +195,7 @@ const POSMain = () => {
   const removeFromCart = useCallback((id) => {
     soundManager.play('removeProduct');
     setCart(cart.filter(item => item.id !== id));
+    try { publish(EVENTS.POS_CART_CHANGED, { type: 'remove', id }); } catch(_) {}
   }, [cart]);
 
   // تحديث طريقة الدفع
@@ -178,16 +211,24 @@ const POSMain = () => {
         return;
       }
 
-      // تحقّق من المخزون قبل الإتمام: أي عنصر مخزونه 0؟
-      const productsMap = new Map(products.map(p => [p.id, p]));
-      const outOfStock = cart.find(it => {
-        const p = productsMap.get(it.id);
-        return p && Number(p.stock || 0) <= 0;
-      });
-      if (outOfStock) {
-        notifyError('نفاد المخزون', `المنتج "${outOfStock.name}" غير متوفر في المخزون (0). أزل المنتج أو زوّد المخزون.`);
-        return;
-      }
+      // التحقق من المخزون فقط إذا كان مفعلاً من الإعدادات
+      try {
+        const storeInfo = JSON.parse(localStorage.getItem('storeInfo') || '{}');
+        const settings = JSON.parse(localStorage.getItem('pos-settings') || '{}');
+        const rawFlag = (storeInfo.inventoryEnabled !== undefined ? storeInfo.inventoryEnabled : settings.inventoryEnabled);
+        const inventoryEnabled = !(rawFlag === false || rawFlag === 'false' || rawFlag === 0 || rawFlag === '0'); // افتراضياً مفعّل إلا لو صرّح بالتعطيل
+        if (inventoryEnabled) {
+          const productsMap = new Map(products.map(p => [p.id, p]));
+          const outOfStock = cart.find(it => {
+            const p = productsMap.get(it.id);
+            return p && Number(p.stock || 0) <= 0;
+          });
+          if (outOfStock) {
+            notifyError('نفاد المخزون', `المنتج "${outOfStock.name}" غير متوفر في المخزون (0). أزل المنتج أو زوّد المخزون.`);
+            return;
+          }
+        }
+      } catch (_) {}
 
       // التحقق من بيانات العميل
       if (!customerInfo.phone || customerInfo.phone.trim() === '') {
@@ -283,21 +324,32 @@ const POSMain = () => {
       storageOptimizer.set('sales', updatedSales);
       try { window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'sales' } })); } catch(_) {}
 
-      // تحديث المخزون
-      const updatedProducts = products.map(product => {
-        const cartItem = cart.find(item => item.id === product.id);
-        if (cartItem) {
-          return {
-            ...product,
-            stock: Math.max(0, product.stock - cartItem.quantity)
-          };
+      // تحديث المخزون فقط إذا كان مفعلاً
+      let updatedProducts = products;
+      try {
+        const storeInfo = JSON.parse(localStorage.getItem('storeInfo') || '{}');
+        const settings = JSON.parse(localStorage.getItem('pos-settings') || '{}');
+        const rawFlag = (storeInfo.inventoryEnabled !== undefined ? storeInfo.inventoryEnabled : settings.inventoryEnabled);
+        const inventoryEnabled = !(rawFlag === false || rawFlag === 'false' || rawFlag === 0 || rawFlag === '0');
+        if (inventoryEnabled) {
+          updatedProducts = products.map(product => {
+            const cartItem = cart.find(item => item.id === product.id);
+            if (cartItem) {
+              return {
+                ...product,
+                stock: Math.max(0, product.stock - cartItem.quantity)
+              };
+            }
+            return product;
+          });
         }
-        return product;
-      });
+      } catch (_) {}
       
       setProducts(updatedProducts);
-      storageOptimizer.set('products', updatedProducts);
+      // حفظ فوري وتفعيل التحديث اللحظي
+      storageOptimizer.setImmediate('products', updatedProducts);
       try { window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { type: 'products' } })); } catch(_) {}
+      try { publish && EVENTS && publish(EVENTS.PRODUCTS_CHANGED, { type: 'stock_update_after_sale', products: updatedProducts }); } catch(_) {}
 
       // تحديث الوردية
       if (activeShift) {
@@ -326,6 +378,13 @@ const POSMain = () => {
       // تشغيل الصوت وإظهار الملخص أولاً
       soundManager.play('success');
       setShowInvoiceSummary(true);
+
+      // منع أي إعادة تحميل تلقائي أثناء عرض الملخص/الطباعة لبضع ثوانٍ
+      try {
+        const suppressForMs = 30000; // منع التحديث 30 ثانية حتى يضغط المستخدم طباعة
+        sessionStorage.setItem('suppressGlobalReloadUntil', String(Date.now() + suppressForMs));
+        sessionStorage.setItem('allowGlobalReload', 'false');
+      } catch(_) {}
 
       // ثم إعادة تعيين السلة والحقول بعد العرض
       setTimeout(() => {
